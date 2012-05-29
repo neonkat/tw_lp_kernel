@@ -801,8 +801,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 			goto keep;
 		}
 
-		if (!force_reclaim)
-			references = page_check_references(page, sc);
+		references = page_check_references(page, sc);
 
 		switch (references) {
 		case PAGEREF_ACTIVATE:
@@ -1392,8 +1391,10 @@ shrink_inactive_list(unsigned long nr_to_scan, struct mem_cgroup_zone *mz,
 	if (nr_taken == 0)
 		return 0;
 
-	nr_reclaimed = shrink_page_list(&page_list, zone, sc, TTU_UNMAP,
-					&nr_dirty, &nr_writeback, false);
+	update_isolated_counts(mz, &page_list, &nr_anon, &nr_file);
+
+	nr_reclaimed = shrink_page_list(&page_list, zone, sc,
+						&nr_dirty, &nr_writeback);
 
 	spin_lock_irq(&zone->lru_lock);
 
