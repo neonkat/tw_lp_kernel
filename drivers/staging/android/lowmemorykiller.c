@@ -61,6 +61,12 @@ static uint32_t oom_count = 0;
 
 #ifdef MULTIPLE_OOM_KILLER
 #define OOM_DEPTH 5
+#include <trace/events/memkill.h>
+
+#ifdef CONFIG_HIGHMEM
+#define _ZONE ZONE_HIGHMEM
+#else
+#define _ZONE ZONE_NORMAL
 #endif
 
 static uint32_t lowmem_debug_level = 1;
@@ -324,6 +330,9 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 				nr_cma_free, sc->priority);
 #endif
 		lowmem_deathpending_timeout = jiffies + HZ;
+		trace_lmk_kill(selected->pid, selected->comm,
+				selected_oom_score_adj, selected_tasksize,
+				min_score_adj);
 		send_sig(SIGKILL, selected, 0);
 		set_tsk_thread_flag(selected, TIF_MEMDIE);
 		rem -= selected_tasksize;
