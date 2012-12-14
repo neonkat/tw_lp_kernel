@@ -271,6 +271,11 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 			task_unlock(p);
 			continue;
 		}
+		if (fatal_signal_pending(p)) {
+			lowmem_print(2, "skip slow dying process %d\n", p->pid);
+			task_unlock(p);
+			continue;
+		}
 		tasksize = get_mm_rss(p->mm);
 #if defined(CONFIG_ZSWAP)
 		if (atomic_read(&zswap_stored_pages)) {
