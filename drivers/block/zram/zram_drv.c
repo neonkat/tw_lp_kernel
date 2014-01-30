@@ -489,6 +489,7 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
 		zram_free_page(zram, index);
 
 	ret = z_compress(uncmem, PAGE_SIZE, src, &clen,
+	ret = lzo1x_1_compress(uncmem, PAGE_SIZE, src, &clen,
 			       meta->compress_workmem);
 
 	if (!is_partial_io(bvec)) {
