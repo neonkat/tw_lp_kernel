@@ -1818,7 +1818,7 @@ static int msm_vidc_load_resources(int flipped_state,
 #if 0 /* Samsung skips the overloaded error return  */		
 		inst->state = MSM_VIDC_CORE_INVALID;
 		msm_comm_recover_from_session_error(inst);
-		return -ENOMEM;
+		return -EBUSY;
 #endif		
 	}
 
