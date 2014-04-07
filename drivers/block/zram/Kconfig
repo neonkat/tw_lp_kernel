@@ -28,6 +28,8 @@ config ZRAM_LZ4_COMPRESS
 	  compared to LZO compression.
 
 	  See https://code.google.com/p/lz4/ for more information about LZ4.
+	  This option enables LZ4 compression algorithm support. Compression
+	  algorithm can be changed using `comp_algorithm' device attribute.
 
 config ZRAM_DEBUG
 	bool "Compressed RAM block device debug support"
