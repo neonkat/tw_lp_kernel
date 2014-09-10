@@ -33,6 +33,18 @@ static void seq_set_overflow(struct seq_file *m)
 	m->count = m->size;
 }
 
+static void *seq_buf_alloc(unsigned long size)
+{
+	void *buf;
+
+	if (size > PAGE_SIZE)
+		buf = vmalloc(size);
+	else
+		buf = kmalloc(size, GFP_KERNEL | __GFP_NOWARN);
+
+	return buf;
+}
+
 /**
  *	seq_open -	initialize sequential file
  *	@file: file we initialize
