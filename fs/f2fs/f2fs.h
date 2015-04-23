@@ -1650,7 +1650,8 @@ extern const struct inode_operations f2fs_special_inode_operations;
 /*
  * inline.c
  */
-bool f2fs_may_inline(struct inode *);
+bool f2fs_may_inline_data(struct inode *);
+bool f2fs_may_inline_dentry(struct inode *);
 void read_inline_data(struct page *, struct page *);
 int f2fs_read_inline_data(struct inode *, struct page *);
 int f2fs_convert_inline_page(struct dnode_of_data *, struct page *);
