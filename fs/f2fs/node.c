@@ -320,7 +320,8 @@ retry:
 	__set_nat_cache_dirty(nm_i, e);
 
 	/* update fsync_mark if its inode nat entry is still alive */
-	e = __lookup_nat_cache(nm_i, ni->ino);
+	if (ni->nid != ni->ino)
+		e = __lookup_nat_cache(nm_i, ni->ino);
 	if (e) {
 		if (fsync_done && ni->nid == ni->ino)
 			set_nat_flag(e, HAS_FSYNCED_INODE, true);
