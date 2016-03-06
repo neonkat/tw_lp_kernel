@@ -38,6 +38,7 @@
 #include <asm/thread_notify.h>
 #include <asm/stacktrace.h>
 #include <asm/mach/time.h>
+#include <asm/tls.h>
 
 #ifdef CONFIG_CC_STACKPROTECTOR
 #include <linux/stackprotector.h>
@@ -85,6 +86,12 @@ void enable_hlt(void)
 }
 
 EXPORT_SYMBOL(enable_hlt);
+
+int get_hlt(void)
+{
+	return hlt_counter;
+}
+EXPORT_SYMBOL(get_hlt);
 
 static int __init nohlt_setup(char *__unused)
 {
@@ -154,6 +161,9 @@ static void __soft_restart(void *addr)
 	/* Push out any further dirty data, and ensure cache is empty */
 	flush_cache_all();
 
+	/* Push out the dirty data from external caches */
+	outer_disable();
+
 	/* Switch to the identity mapping. */
 	phys_reset = (phys_reset_t)(unsigned long)virt_to_phys(cpu_reset);
 	phys_reset((unsigned long)addr);
@@ -218,7 +228,8 @@ EXPORT_SYMBOL_GPL(cpu_idle_wait);
  * This is our default idle handler.
  */
 
-void (*arm_pm_idle)(void);
+extern void arch_idle(void);
+void (*arm_pm_idle)(void) = arch_idle;
 
 static void default_idle(void)
 {
@@ -248,11 +259,6 @@ void cpu_idle(void)
 		tick_nohz_idle_enter();
 		rcu_idle_enter();
 		while (!need_resched()) {
-#ifdef CONFIG_HOTPLUG_CPU
-			if (cpu_is_offline(smp_processor_id()))
-				cpu_die();
-#endif
-
 			/*
 			 * We need to disable interrupts here
 			 * to ensure we don't miss a wakeup call.
@@ -281,6 +287,10 @@ void cpu_idle(void)
 		tick_nohz_idle_exit();
 		idle_notifier_call_chain(IDLE_END);
 		schedule_preempt_disabled();
+#ifdef CONFIG_HOTPLUG_CPU
+		if (cpu_is_offline(smp_processor_id()))
+			cpu_die();
+#endif
 	}
 }
 
@@ -296,6 +306,7 @@ __setup("reboot=", reboot_setup);
 
 void machine_shutdown(void)
 {
+	preempt_disable();
 #ifdef CONFIG_SMP
 	smp_send_stop();
 #endif
@@ -381,25 +392,44 @@ static void show_data(unsigned long addr, int nbytes, const char *name)
 static void show_extra_register_data(struct pt_regs *regs, int nbytes)
 {
 	mm_segment_t fs;
+	unsigned long is_user;
 
 	fs = get_fs();
+	is_user = user_mode(regs);
+
 	set_fs(KERNEL_DS);
-	show_data(regs->ARM_pc - nbytes, nbytes * 2, "PC");
-	show_data(regs->ARM_lr - nbytes, nbytes * 2, "LR");
-	show_data(regs->ARM_sp - nbytes, nbytes * 2, "SP");
-	show_data(regs->ARM_ip - nbytes, nbytes * 2, "IP");
-	show_data(regs->ARM_fp - nbytes, nbytes * 2, "FP");
-	show_data(regs->ARM_r0 - nbytes, nbytes * 2, "R0");
-	show_data(regs->ARM_r1 - nbytes, nbytes * 2, "R1");
-	show_data(regs->ARM_r2 - nbytes, nbytes * 2, "R2");
-	show_data(regs->ARM_r3 - nbytes, nbytes * 2, "R3");
-	show_data(regs->ARM_r4 - nbytes, nbytes * 2, "R4");
-	show_data(regs->ARM_r5 - nbytes, nbytes * 2, "R5");
-	show_data(regs->ARM_r6 - nbytes, nbytes * 2, "R6");
-	show_data(regs->ARM_r7 - nbytes, nbytes * 2, "R7");
-	show_data(regs->ARM_r8 - nbytes, nbytes * 2, "R8");
-	show_data(regs->ARM_r9 - nbytes, nbytes * 2, "R9");
-	show_data(regs->ARM_r10 - nbytes, nbytes * 2, "R10");
+	if (!is_user || regs->ARM_pc < TASK_SIZE)
+		show_data(regs->ARM_pc - nbytes, nbytes * 2, "PC");
+	if (!is_user || regs->ARM_lr < TASK_SIZE)
+		show_data(regs->ARM_lr - nbytes, nbytes * 2, "LR");
+	if (!is_user || regs->ARM_sp < TASK_SIZE)
+		show_data(regs->ARM_sp - nbytes, nbytes * 2, "SP");
+	if (!is_user || regs->ARM_ip < TASK_SIZE)
+		show_data(regs->ARM_ip - nbytes, nbytes * 2, "IP");
+	if (!is_user || regs->ARM_fp < TASK_SIZE)
+		show_data(regs->ARM_fp - nbytes, nbytes * 2, "FP");
+	if (!is_user || regs->ARM_r0 < TASK_SIZE)
+		show_data(regs->ARM_r0 - nbytes, nbytes * 2, "R0");
+	if (!is_user || regs->ARM_r1 < TASK_SIZE)
+		show_data(regs->ARM_r1 - nbytes, nbytes * 2, "R1");
+	if (!is_user || regs->ARM_r2 < TASK_SIZE)
+		show_data(regs->ARM_r2 - nbytes, nbytes * 2, "R2");
+	if (!is_user || regs->ARM_r3 < TASK_SIZE)
+		show_data(regs->ARM_r3 - nbytes, nbytes * 2, "R3");
+	if (!is_user || regs->ARM_r4 < TASK_SIZE)
+		show_data(regs->ARM_r4 - nbytes, nbytes * 2, "R4");
+	if (!is_user || regs->ARM_r5 < TASK_SIZE)
+		show_data(regs->ARM_r5 - nbytes, nbytes * 2, "R5");
+	if (!is_user || regs->ARM_r6 < TASK_SIZE)
+		show_data(regs->ARM_r6 - nbytes, nbytes * 2, "R6");
+	if (!is_user || regs->ARM_r7 < TASK_SIZE)
+		show_data(regs->ARM_r7 - nbytes, nbytes * 2, "R7");
+	if (!is_user || regs->ARM_r8 < TASK_SIZE)
+		show_data(regs->ARM_r8 - nbytes, nbytes * 2, "R8");
+	if (!is_user || regs->ARM_r9 < TASK_SIZE)
+		show_data(regs->ARM_r9 - nbytes, nbytes * 2, "R9");
+	if (!is_user || regs->ARM_r10 < TASK_SIZE)
+		show_data(regs->ARM_r10 - nbytes, nbytes * 2, "R10");
 	set_fs(fs);
 }
 
@@ -524,7 +554,8 @@ copy_thread(unsigned long clone_flags, unsigned long stack_start,
 	clear_ptrace_hw_breakpoint(p);
 
 	if (clone_flags & CLONE_SETTLS)
-		thread->tp_value = regs->ARM_r3;
+		thread->tp_value[0] = childregs->ARM_r3;
+	thread->tp_value[1] = get_tpuser();
 
 	thread_notify(THREAD_NOTIFY_COPY, thread);
 
@@ -640,10 +671,11 @@ unsigned long arch_randomize_brk(struct mm_struct *mm)
 }
 
 #ifdef CONFIG_MMU
+#ifdef CONFIG_KUSER_HELPERS
 /*
  * The vectors page is always readable from user space for the
- * atomic helpers and the signal restart code. Insert it into the
- * gate_vma so that it is visible through ptrace and /proc/<pid>/mem.
+ * atomic helpers. Insert it into the gate_vma so that it is visible
+ * through ptrace and /proc/<pid>/mem.
  */
 static struct vm_area_struct gate_vma;
 
@@ -672,9 +704,53 @@ int in_gate_area_no_mm(unsigned long addr)
 {
 	return in_gate_area(NULL, addr);
 }
+#define is_gate_vma(vma)	((vma) == &gate_vma)
+#else
+#define is_gate_vma(vma)	0
+#endif
 
 const char *arch_vma_name(struct vm_area_struct *vma)
 {
-	return (vma == &gate_vma) ? "[vectors]" : NULL;
+	if (is_gate_vma(vma))
+		return "[vectors]";
+	else if (vma->vm_mm && vma->vm_start == vma->vm_mm->context.sigpage)
+		return "[sigpage]";
+	else if (vma == get_user_timers_vma(NULL))
+		return "[timers]";
+	else
+		return NULL;
+}
+
+static struct page *signal_page;
+extern struct page *get_signal_page(void);
+
+int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
+{
+	struct mm_struct *mm = current->mm;
+	unsigned long addr;
+	int ret;
+
+	if (!signal_page)
+		signal_page = get_signal_page();
+	if (!signal_page)
+		return -ENOMEM;
+
+	down_write(&mm->mmap_sem);
+	addr = get_unmapped_area(NULL, 0, PAGE_SIZE, 0, 0);
+	if (IS_ERR_VALUE(addr)) {
+		ret = addr;
+		goto up_fail;
+	}
+
+	ret = install_special_mapping(mm, addr, PAGE_SIZE,
+		VM_READ | VM_EXEC | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC,
+		&signal_page);
+
+	if (ret == 0)
+		mm->context.sigpage = addr;
+
+ up_fail:
+	up_write(&mm->mmap_sem);
+	return ret;
 }
 #endif
