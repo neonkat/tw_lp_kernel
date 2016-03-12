@@ -6,7 +6,7 @@
 BUILD_TOP_DIR=..
 BUILD_KERNEL_DIR=$(pwd)
 
-BUILD_CROSS_COMPILE=~/working/kernel/arm-eabi-4.8/bin/arm-eabi-
+BUILD_CROSS_COMPILE=~/working/kernel/toolchain/arm-eabi-4.8/bin/arm-eabi-
 BUILD_JOB_NUMBER=`grep processor /proc/cpuinfo|wc -l`
 
 KERNEL_DEFCONFIG=msm8226-sec_defconfig
@@ -109,7 +109,7 @@ FUNC_APPEND_DTB()
 }
 
 INSTALLED_DTIMAGE_TARGET=${BUILD_KERNEL_OUT_DIR}/dt.img
-DTBTOOL=$BUILD_TOP_DIR/samsung_${MODEL}_${CARRIER}/tools/dtbTool
+DTBTOOL=tools/dtbTool
 
 FUNC_BUILD_DTIMAGE_TARGET()
 {
