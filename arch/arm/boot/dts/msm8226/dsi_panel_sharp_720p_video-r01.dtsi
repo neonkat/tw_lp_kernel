@@ -59,7 +59,6 @@
 		qcom,mdss-force-clk-lane-hs = <1>;
 		qcom,mdss-dsi-lane-map = <0>;
 		qcom,mdss-dsi-h-sync-pulse = <0>;
-		qcom,mdss-dsi-panel-clock-rate = <455000000>;
 
 
 		qcom,mdss-dsi-sharp-on-command = [
@@ -68,7 +67,8 @@
 			39 01 00 00 01 00 03 F0 A5 A5
 			39 01 00 00 01 00 02 36 C0
 			39 01 00 00 01 00 02 53 26
-			
+			39 01 00 00 10 00 02 51 5f
+
 			05 01 00 00 78 00 02 11 00 /* Sleep out */
 			39 01 00 00 01 00 03 F0 5A 5A
 			39 01 00 00 01 00 04 C3 BB 00 21 /* Set PWM frequency to higher than 22KHz */
@@ -108,13 +108,14 @@
 			39 01 00 00 01 00 07 BC 01 38 04 04 00 00
 			39 01 00 00 14 00 02 36 00
 			39 01 00 00 01 00 02 53 26
+			39 01 00 00 10 00 02 51 5f
 			39 01 00 00 0A 00 02 29 00
 			39 01 00 00 01 00 02 B0 00
 			];
 		samsung,panel-manufacture-id-read-cmds = [06 01 00 00 00 00 01 da 01
 							06 01 00 00 00 00 01 db 01
 							06 01 00 00 00 00 01 dc 01];
-		qcom,mdss-dsi-on-command-state = "dsi_hs_mode";
+		qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
 		qcom,mdss-dsi-off-command = [05 01 00 00 32 00 02 28 00
 					05 01 00 00 78 00 02 10 00];
 		qcom,mdss-dsi-jdi-off-command = [05 01 00 00 22 00 02 28 00
@@ -136,7 +137,10 @@
 		compatible = "qcom,mdss-dsi-ctrl";
 		label = "MDSS DSI CTRL->0";
 		cell-index = <0>;
-		reg = <0xfd922800 0x600>;
+		reg = 	<0xfd922800 0x1f8>,
+			<0xfd922b00 0x2b0>,
+			<0xfd828000 0x108>;
+		reg-names = "dsi_ctrl", "dsi_phy", "mmss_misc_phys";
 		qcom,mdss-fb-map = <&mdss_fb0>;
 		qcom,bl-on-gpio = <&msmgpio 63 0>;
 		qcom,disp-on-gpio-p = <&msmgpio 56 0>;
