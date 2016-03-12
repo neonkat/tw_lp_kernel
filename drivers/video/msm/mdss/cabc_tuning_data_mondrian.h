@@ -44,6 +44,11 @@ static char CABC_NORMAL_2[CABC_TUNE_SECOND_SIZE] = {
 };
 
 static char CABC_NORMAL_3[CABC_TUNE_THIRD_SIZE] = {
+	0x5E,
+	0x03,
+};
+
+static char CABC_NORMAL_4[CABC_TUNE_FOURTH_SIZE] = {
 	0xCE,
 	0x75,
 	0x7D,
@@ -62,9 +67,15 @@ static char CABC_NORMAL_3[CABC_TUNE_THIRD_SIZE] = {
 	0xB5,
 	0xB7,
 	0xB8,
+	0x04,
+	0x00,
+	0x04,
+	0x04,
+	0x44,
+	0x24,
 };
 
-static char CABC_NORMAL_4[CABC_TUNE_FOURTH_SIZE] = {
+static char CABC_NORMAL_5[CABC_TUNE_FIFTH_SIZE] = {
 	0xC1,
 	0x0C,
 	0x60,
@@ -104,7 +115,7 @@ static char CABC_NORMAL_4[CABC_TUNE_FOURTH_SIZE] = {
 };
 
 
-static char CABC_NEGATIVE_4[CABC_TUNE_FOURTH_SIZE] = {
+static char CABC_NEGATIVE_5[CABC_TUNE_FIFTH_SIZE] = {
 	0xC1,
 	0x1C,
 	0x60,

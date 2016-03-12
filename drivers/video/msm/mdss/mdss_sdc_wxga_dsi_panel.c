@@ -57,7 +57,7 @@ DEFINE_LED_TRIGGER(bl_led_trigger);
 
 static struct mdss_samsung_driver_data msd;
 extern int system_rev;
-#if defined(CONFIG_MACH_DEGASLTE_SPR)
+#if defined(CONFIG_SEC_DEGAS_PROJECT)
 static int	bl_min_brightness = 1;
 static int	bl_max_brightness_level  = 184;
 static int	bl_mid_brightness_level = 79;
@@ -79,7 +79,13 @@ static int	bl_mid_brightness_level = 110;
 static int	bl_low_brightness_level = 2;
 static int	bl_dim_brightness_level = 12;
 static int	bl_default_brightness = 110;
-
+#elif defined(CONFIG_SEC_RUBENS_PROJECT)
+static int	bl_min_brightness = 3;
+static int	bl_max_brightness_level  = 230;
+static int	bl_mid_brightness_level = 107;
+static int	bl_low_brightness_level = 3;
+static int	bl_dim_brightness_level = 12;
+static int	bl_default_brightness = 100;
 #else
 static int	bl_min_brightness = 3;
 static int	bl_max_brightness_level  = 230;
@@ -97,6 +103,7 @@ void mdss_dsi_panel_pwm_cfg(struct mdss_dsi_ctrl_pdata *ctrl)
 	}
 }
 
+#if !defined(CONFIG_SEC_RUBENS_PROJECT)
 static void mdss_dsi_panel_bklt_pwm(struct mdss_dsi_ctrl_pdata *ctrl, int level)
 {
 	int ret;
@@ -140,6 +147,7 @@ static void mdss_dsi_panel_bklt_pwm(struct mdss_dsi_ctrl_pdata *ctrl, int level)
 		pr_err("%s: pwm_enable() failed err=%d\n", __func__, ret);
 	ctrl->pwm_enabled = 1;
 }
+#endif
 
 static char dcs_cmd[2] = {0x54, 0x00}; /* DTYPE_DCS_READ */
 static struct dsi_cmd_desc dcs_read_cmd = {
@@ -293,13 +301,20 @@ static void mdss_dsi_panel_cabc_dcs(struct mdss_dsi_ctrl_pdata *ctrl, int siop_s
 
 	struct dcs_cmd_req cmdreq;
 
-	pr_debug("%s: cabc=%d\n", __func__, siop_status);
+	pr_info("%s: cabc=%d\n", __func__, siop_status);
 	if (get_lcd_attached() == 0)
 	{
 		printk("%s: LCD not connected!\n",__func__);
 		return;
 	}
+#if defined(CONFIG_SEC_RUBENS_PROJECT) || defined(CONFIG_SEC_DEGAS_PROJECT)
+	if(siop_status)
+		lcd_cabc[1] = 0x03;
+	else
+		lcd_cabc[1]  = (unsigned char)siop_status;
+#else
 	lcd_cabc[1] = (unsigned char)siop_status;
+#endif
 	memset(&cmdreq, 0, sizeof(cmdreq));
 	cmdreq.cmds = &cabc_cmd;
 	cmdreq.cmds_cnt = 1;
@@ -505,7 +520,9 @@ static int mdss_dsi_panel_partial_update(struct mdss_panel_data *pdata)
 
 	return rc;
 }
-
+#if defined(CONFIG_SEC_RUBENS_PROJECT)
+extern void pwm_backlight_control_i2c(int scaled_level);
+#endif
 static void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
 							u32 bl_level)
 {
@@ -538,7 +555,12 @@ static void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
 		led_trigger_event(bl_led_trigger, bl_level);
 		break;
 	case BL_PWM:
+#if defined(CONFIG_SEC_RUBENS_PROJECT)
+		bl_level=mdss_dsi_panel_pwm_scaling(bl_level);
+		pwm_backlight_control_i2c(bl_level);
+#else
 		mdss_dsi_panel_bklt_pwm(ctrl_pdata, bl_level);
+#endif
 		break;
 	case BL_DCS_CMD:
 		mdss_dsi_panel_bklt_dcs(ctrl_pdata, bl_level);
@@ -549,11 +571,19 @@ static void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
 		break;
 	}
 }
-#if !defined(CONFIG_MACH_DEGASLTE_SPR)
+#if !defined(CONFIG_SEC_DEGAS_PROJECT)
 extern void pwm_backlight_enable(void);
 
 static int samsung_dsi_panel_event_handler(int event)
 {
+	struct mdss_panel_data *pdata;
+	struct mdss_dsi_ctrl_pdata *ctrl_pdata;
+	static int first_boot = 1;
+
+	pdata = msd.mpd;
+	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
+						panel_data);
+	
 	pr_debug("SS DSI Event Handler");
 		switch (event) {
 			case MDSS_EVENT_BACKLIGHT_LATE_ON:
@@ -569,8 +599,20 @@ static int samsung_dsi_panel_event_handler(int event)
 					msleep(1);
 					pr_info("SS DSI Event Handler Backlight Late on");
 					}
+#if defined(CONFIG_MDNIE_TFT_MSM8X26)
+			is_negative_on();
+#endif
+#if defined(CONFIG_LCD_CLASS_DEVICE)
+			if(!first_boot){
+				pr_info("SS DSI Event Handler - sending cabc commands");
+				mdss_dsi_panel_cabc_dcs(ctrl_pdata, msd.dstat.siop_status);
+			} else {
+				first_boot = 0;
+			}
+#endif
 					msd.dstat.wait_bl_on = 0;
 				}
+
 			break;
 		default:
 			pr_err("%s : unknown event \n", __func__);
@@ -592,17 +634,15 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 	ctrl = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
 
-	pr_debug("%s: ctrl=%p ndx=%d\n", __func__, ctrl, ctrl->ndx);
+	pr_info("%s: ctrl=%p ndx=%d\n", __func__, ctrl, ctrl->ndx);
 
 	if (ctrl->on_cmds.cmd_cnt)
 		mdss_dsi_panel_cmds_send(ctrl, &ctrl->on_cmds);
 	msd.dstat.wait_bl_on = 1;
 
 	msd.mfd->resume_state = MIPI_RESUME_STATE;
-#if defined(CONFIG_LCD_CLASS_DEVICE)
-	mdss_dsi_panel_cabc_dcs(ctrl, msd.dstat.siop_status);
-#endif
-#if defined(CONFIG_MDNIE_TFT_MSM8X26)
+
+#if defined(CONFIG_MDNIE_TFT_MSM8X26) && defined(CONFIG_SEC_DEGAS_PROJECT)
 	is_negative_on();
 #endif
 #if defined(CONFIG_ESD_ERR_FG_RECOVERY)
@@ -632,7 +672,7 @@ static int mdss_dsi_panel_off(struct mdss_panel_data *pdata)
 #endif
 	pr_debug("%s: ctrl=%p ndx=%d\n", __func__, ctrl, ctrl->ndx);
 
-#if defined(CONFIG_SEC_T10_PROJECT)
+#if defined(CONFIG_SEC_T10_PROJECT) || defined(CONFIG_SEC_RUBENS_PROJECT)
 	if (gpio_is_valid(msd.bl_rst_gpio)) {
 			gpio_tlmm_config(GPIO_CFG(msd.bl_rst_gpio, 0,
 				GPIO_CFG_OUTPUT,GPIO_CFG_PULL_DOWN,GPIO_CFG_2MA),
@@ -1069,7 +1109,7 @@ static int mdss_panel_parse_dt(struct device_node *np,
 			ctrl_pdata->bklt_ctrl = BL_WLED;
 		} else if (!strncmp(data, "bl_ctrl_pwm", 11)) {
 			ctrl_pdata->bklt_ctrl = BL_PWM;
-			rc = of_property_read_u32(np,
+/*			rc = of_property_read_u32(np,
 				"qcom,mdss-dsi-bl-pmic-pwm-frequency", &tmp);
 			if (rc) {
 				pr_err("%s:%d, Error, panel pwm_period\n",		
@@ -1087,7 +1127,7 @@ static int mdss_panel_parse_dt(struct device_node *np,
 			ctrl_pdata->pwm_lpg_chan = tmp;
 			tmp = of_get_named_gpio(np,
 				"qcom,mdss-dsi-pwm-gpio", 0);
-			ctrl_pdata->pwm_pmic_gpio = tmp;
+			ctrl_pdata->pwm_pmic_gpio = tmp;*/
 		} else if (!strncmp(data, "bl_ctrl_dcs", 11)) {
 			ctrl_pdata->bklt_ctrl = BL_DCS_CMD;
  		}
@@ -1343,12 +1383,104 @@ static struct lcd_ops mdss_dsi_disp_props = {
 
 };
 
+#if defined(CONFIG_SEC_RUBENS_PROJECT)
+static ssize_t mdss_auto_brightness_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	int rc;
+
+	rc = snprintf(buf, sizeof(buf), "%d\n",
+					msd.dstat.auto_brightness);
+	pr_info("%s : auto_brightness : %d\n", __func__, msd.dstat.auto_brightness);
+
+	return rc;
+}
+
+static ssize_t mdss_auto_brightness_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size)
+{
+	static unsigned char prev_auto_brightness;
+	struct mdss_panel_data *pdata = msd.mpd;
+	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
+
+#if defined(CONFIG_LCD_CONNECTION_CHECK)
+	if (get_lcd_attached() == 0)
+	{
+		printk("%s: LCD not connected!\n",__func__);
+		return size;
+	}
+#endif
+
+	if (sysfs_streq(buf, "0"))
+		msd.dstat.auto_brightness = 0;
+	else if (sysfs_streq(buf, "1"))
+		msd.dstat.auto_brightness = 1;
+	else if (sysfs_streq(buf, "2"))
+		msd.dstat.auto_brightness = 2;
+	else if (sysfs_streq(buf, "3"))
+		msd.dstat.auto_brightness = 3;
+	else if (sysfs_streq(buf, "4"))
+		msd.dstat.auto_brightness = 4;
+	else if (sysfs_streq(buf, "5"))
+		msd.dstat.auto_brightness = 5;
+	else if (sysfs_streq(buf, "6"))
+		msd.dstat.auto_brightness = 6;
+	else if (sysfs_streq(buf, "7"))
+		msd.dstat.auto_brightness = 7;
+	else if (sysfs_streq(buf, "8"))
+		msd.dstat.auto_brightness = 8;
+	else
+		pr_info("%s: Invalid argument!!", __func__);
+
+	mdelay(1);
+
+	if((msd.dstat.auto_brightness >=5 )|| (msd.dstat.auto_brightness == 0 ))
+		msd.dstat.siop_status = false;
+	else
+		msd.dstat.siop_status = true;
+	if(msd.mfd == NULL){
+		pr_err("%s: mfd not initialized\n", __func__);
+		return size;
+	}
+
+	if( msd.mfd->panel_power_on == false){
+		pr_err("%s: panel power off no bl ctrl\n", __func__);
+		return size;
+	}
+
+	if(pdata == NULL){
+		pr_err("%s: pdata not available... skipping update\n", __func__);
+		return size;
+	}
+	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
+						panel_data);
+
+	prev_auto_brightness = msd.dstat.auto_brightness;
+#if defined(CONFIG_MDNIE_TFT_MSM8X26)
+	if (msd.dstat.auto_brightness != 0)
+		mDNIe_Set_Mode(mDNIE_OUTDOOR_MODE);
+	else if (msd.scenario == mDNIE_OUTDOOR_MODE)
+		mDNIe_Set_Mode(mDNIE_OUTDOOR_MODE);
+#endif
+	mdss_dsi_panel_cabc_dcs(ctrl_pdata, msd.dstat.siop_status);
+	pr_info("%s %d %d\n", __func__, msd.dstat.auto_brightness, msd.dstat.siop_status);
+	return size;
+}
+
+static DEVICE_ATTR(auto_brightness, S_IRUGO | S_IWUSR | S_IWGRP,
+			mdss_auto_brightness_show,
+			mdss_auto_brightness_store);
+#endif
 static ssize_t mdss_disp_lcdtype_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
 	char temp[20];
-#if defined(CONFIG_MACH_DEGASLTE_SPR)
+#if defined(CONFIG_SEC_DEGAS_PROJECT)
 	snprintf(temp, 20, "BOE_BP070WX1-300");
+#elif defined(CONFIG_SEC_RUBENSWIFI_COMMON)
+	snprintf(temp, 20, "INH_%x\n",lcd_id);
+#elif defined(CONFIG_SEC_RUBENSLTE_COMMON)
+	snprintf(temp, 20, "%x\n",lcd_id);
 #else
 	snprintf(temp, 20, "SMD_LSL080AL03");
 #endif
@@ -1392,10 +1524,20 @@ static irqreturn_t err_fg_irq_handler(int irq, void *handle)
 }
 static void err_fg_work_func(struct work_struct *work)
 {
-	int bl_backup,tmp;
+	int bl_backup;
+#if !defined(CONFIG_SEC_DEGAS_PROJECT)
+	int tmp, ret=0;
+#endif
 	struct mdss_panel_data *pdata = msd.mpd;
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
-	int ret = 0;
+#if defined(CONFIG_SEC_DEGAS_PROJECT)
+	char *envp[2] = {"PANEL_ALIVE=0", NULL};
+#endif
+
+	if (get_lcd_attached() == 0) {
+		pr_err("%s: LCD not attached, NO ESD recovery\n", __func__);
+		return;
+	}
 
 	if(msd.mfd == NULL){
 		pr_err("%s: mfd not initialized Skip ESD recovery\n", __func__);
@@ -1421,6 +1563,13 @@ static void err_fg_work_func(struct work_struct *work)
 	mutex_lock(&msd.mfd->power_state);
 	err_fg_working = 1;
 
+#if defined(CONFIG_SEC_DEGAS_PROJECT)
+	pdata->panel_info.panel_dead = true;
+	kobject_uevent_env(
+			&msd.mfd->fbi->dev->kobj,
+						KOBJ_CHANGE, envp);
+	pr_err("%s: Panel has gone bad, sending uevent - %s\n",	__func__, envp[0]);
+#else
 	mdss_dsi_op_mode_config(DSI_CMD_MODE, pdata);
 	if (ctrl_pdata->ctrl_state & CTRL_STATE_PANEL_INIT) {
 	ret = ctrl_pdata->off(pdata);
@@ -1457,9 +1606,8 @@ static void err_fg_work_func(struct work_struct *work)
 		}
 		ctrl_pdata->ctrl_state |= CTRL_STATE_PANEL_INIT;
 	}
-#if !defined(CONFIG_MACH_DEGASLTE_SPR)
+
 	ctrl_pdata->event_handler(MDSS_EVENT_BACKLIGHT_LATE_ON);
-#endif 
 	disable_irq_nosync(err_fg_gpio);
 	enable_irq(err_fg_gpio);
 	mdelay(20);
@@ -1482,9 +1630,10 @@ static void err_fg_work_func(struct work_struct *work)
 	mdss_dsi_panel_bl_ctrl(pdata, bl_backup);
     mdss_dsi_panel_bl_ctrl(pdata, bl_backup);
     mdss_dsi_panel_bl_ctrl(pdata, bl_backup);
-    mdss_dsi_panel_bl_ctrl(pdata, bl_backup);
 	mdss_dsi_panel_bl_ctrl(pdata, bl_backup);
-       mdelay(5);
+#endif
+	mdss_dsi_panel_bl_ctrl(pdata, bl_backup);
+	mdelay(5);
 	esd_count++;
 	err_fg_working = 0;
 	mutex_unlock(&msd.mfd->power_state);
@@ -1818,6 +1967,30 @@ static ssize_t tuning_store(struct device *dev,
 }
 static DEVICE_ATTR(tuning, S_IRUGO | S_IWUSR | S_IWGRP,tuning_show,tuning_store);
 #endif
+static int mdss_dsi_panel_registered(struct mdss_panel_data *pdata)
+{
+	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
+	if (pdata == NULL) {
+			pr_err("%s: Invalid input data\n", __func__);
+			return -EINVAL;
+	}
+	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
+				panel_data);
+
+	msd.mfd = (struct msm_fb_data_type *)registered_fb[0]->par;
+	msd.mpd = pdata;
+
+	if(!msd.mfd) {
+		pr_info("%s msd.mfd is null!!\n",__func__);
+	} else {
+		pr_info("%s msd.mfd is ok!!\n",__func__);
+	}
+
+	msd.mfd->resume_state = MIPI_RESUME_STATE;
+	pr_info("%s:%d, Panel registered succesfully\n", __func__, __LINE__);
+	return 0;
+}
+
 int mdss_dsi_panel_init(struct device_node *node,
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata,
 	bool cmd_cfg_cont_splash)
@@ -1903,7 +2076,8 @@ int mdss_dsi_panel_init(struct device_node *node,
 	ctrl_pdata->off = mdss_dsi_panel_off;
 	ctrl_pdata->panel_data.set_backlight = mdss_dsi_panel_bl_ctrl;
 	ctrl_pdata->panel_reset = mdss_dsi_sdc_panel_reset;
-#if  !defined(CONFIG_MACH_DEGASLTE_SPR)
+	ctrl_pdata->registered = mdss_dsi_panel_registered;
+#if  !defined(CONFIG_SEC_DEGAS_PROJECT)
 	ctrl_pdata->event_handler = samsung_dsi_panel_event_handler;
 #endif
 #if defined(CONFIG_LCD_CLASS_DEVICE)
@@ -1946,6 +2120,14 @@ int mdss_dsi_panel_init(struct device_node *node,
 		pr_info("backlight : failed to register device\n");
 		return rc;
 	}
+#if defined(CONFIG_SEC_RUBENS_PROJECT)
+	rc= sysfs_create_file(&bd->dev.kobj,
+					&dev_attr_auto_brightness.attr);
+	if (rc) {
+		pr_info("sysfs create fail-%s\n",
+				dev_attr_auto_brightness.attr.name);
+	}
+#endif
 #endif
 #endif
 #if defined(DDI_VIDEO_ENHANCE_TUNING)
@@ -1988,9 +2170,9 @@ int mdss_dsi_panel_init(struct device_node *node,
 
 	gpio_tlmm_config(GPIO_CFG(msd.bl_ldi_en,  0, GPIO_CFG_INPUT,
 					GPIO_CFG_NO_PULL, GPIO_CFG_2MA),GPIO_CFG_ENABLE);
-#if defined(CONFIG_MACH_DEGASLTE_SPR)
+#if defined(CONFIG_SEC_DEGAS_PROJECT)
 	rc = request_threaded_irq(err_fg_gpio, NULL, err_fg_irq_handler,
-		IRQF_TRIGGER_HIGH | IRQF_ONESHOT, "esd_detect", NULL);
+		IRQF_TRIGGER_RISING | IRQF_ONESHOT, "esd_detect", NULL);
 #else
 	rc = request_threaded_irq(err_fg_gpio, NULL, err_fg_irq_handler,
 		IRQF_TRIGGER_LOW | IRQF_ONESHOT, "esd_detect", NULL);

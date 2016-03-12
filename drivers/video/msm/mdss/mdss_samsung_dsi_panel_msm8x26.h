@@ -54,7 +54,6 @@
 
 #if defined(CONFIG_FB_MSM_MDSS_CPT_QHD_PANEL)
 #define SINGLE_WIRE_BL_CTRL 1
-#define DDI_VIDEO_ENHANCE_TUNING
 #define DT_CMD_HDR 6
 #endif
 
@@ -106,6 +105,7 @@ enum {
 	struct early_suspend early_suspend;
 #endif
 	struct display_status dstat;
+	int scenario;
  };
 
 void mdnie_lite_tuning_init(struct mdss_samsung_driver_data* msd);

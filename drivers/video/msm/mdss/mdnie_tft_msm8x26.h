@@ -91,6 +91,8 @@ enum Lcd_mDNIe_UI {
 	mDNIe_DMB_WARM_MODE,
 	mDNIe_DMB_COLD_MODE,
 #endif
+	mDNIE_OUTDOOR_MODE,
+	mDNIE_OUTDOOR_MODE_FOR_TEXT,
 	MAX_mDNIe_MODE,
 #ifdef BROWSER_COLOR_TONE_SET
 	mDNIe_BROWSER_TONE1 = 40,
@@ -142,4 +144,5 @@ unsigned int mdss_dsi_show_cabc(void );
 void mdss_dsi_store_cabc(unsigned int cabc);
 void init_mdnie_class(void);
 void is_negative_on(void);
+void mDNIe_Set_Mode(enum Lcd_mDNIe_UI mode);
 #endif /*_MDNIE_LITE_TUNING_H_*/

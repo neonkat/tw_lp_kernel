@@ -234,6 +234,10 @@ config CABC_TUNING
 	bool "CABC panel tuning"
 	default n
 
+config CABC_TUNING_HX8394C
+	bool "CABC panel(HX8394C) tuning"
+	default n
+
 config FB_MSM_MIPI_TFT_VIDEO_FULL_HD_PT_PANEL
 	bool "Support TFT VIDEO FULL HD Panel"
 	select FB_MSM_MIPI_DSI
@@ -311,6 +315,10 @@ config GET_LCD_ATTACHED
 	bool "check if LCD connected or not and detect panel vendor"
 	default n
 
+config GET_LCD_PCD_DETECTED
+	bool "check if PCD detected or not"
+	default n
+
 config WHITE_PANEL
 	bool "Support normally White Panel"
 	default n
@@ -331,3 +339,10 @@ config MDP_NEGATIVE_SUPPORT
 	bool "Support MDP negative color"
 	default n
 
+config MDSS_UD_FLIP
+	bool "Support MDSS UD flip"
+	default n
+
+config SEC_MIPI_CLOCK_TUNING
+	bool "MIPI DSI Clock Tuning Tool"
+	default n

@@ -138,7 +138,7 @@ int platform_ap_hdmi_hdcp_auth(struct sii8240_data *sii8240)
 		ret = hdmi_hdcp_authentication_part1_start(hdcp_ctrl_global);
 		sii8240->mhl_ddc_bypass(false);
 		if (ret) {
-			pr_err("%s: HDMI HDCP Auth Part I failed\n", __func__);
+			pr_err("%s: HDMI HDCP Auth Part I failed (%d)\n", __func__, ret);
 			return ret;
 		}
 		hdcp_ctrl_global->hdcp_state = HDCP_STATE_AUTHENTICATED;

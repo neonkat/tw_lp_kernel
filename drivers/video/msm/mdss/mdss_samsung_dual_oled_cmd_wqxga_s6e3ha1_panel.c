@@ -66,10 +66,11 @@ static struct candella_lux_map candela_map_table;
 
 static struct dsi_cmd gamma_cmds_list;
 static struct dsi_cmd elvss_cmds_list;
-
 static struct cmd_map aid_map_table;
 static struct dsi_cmd aid_cmds_list;
 
+static struct dsi_cmd test_key_enable_cmds;
+static struct dsi_cmd test_key_disable_cmds;
 #if defined(HBM_RE)
 static struct dsi_cmd nv_mtp_hbm_read_cmds;
 static struct dsi_cmd nv_mtp_hbm2_read_cmds;
@@ -369,6 +370,19 @@ static int get_cmd_idx(int bl_level)
 	return candela_map_table.cmd_idx[candela_map_table.bkl[bl_level]];
 }
 
+static struct dsi_cmd get_testKey_set(int enable)/*F0 or F0 F1*/
+{
+	struct dsi_cmd testKey = {0,};
+
+	if (enable)
+		testKey.cmd_desc = &(test_key_enable_cmds.cmd_desc[0]);
+	else
+		testKey.cmd_desc = &(test_key_disable_cmds.cmd_desc[0]);
+
+	testKey.num_of_cmds = test_key_disable_cmds.num_of_cmds;
+
+	return testKey;
+}
 
 static struct dsi_cmd get_aid_aor_control_set(int cd_idx)
 {
@@ -656,12 +670,16 @@ static int make_brightcontrol_set(int bl_level)
 	struct dsi_cmd elvss_control = {0,};
 	struct dsi_cmd elvss_control_cmd = {0,};
 	struct dsi_cmd gamma_control = {0,};
+	struct dsi_cmd testKey = {0,};
 	int cmd_count = 0, cd_idx = 0, cd_level =0;
 
 	cd_idx = get_cmd_idx(bl_level);
 	cd_level = get_candela_value(bl_level);
 
 	/* aid/aor */
+	testKey = get_testKey_set(1);
+	cmd_count = update_bright_packet(cmd_count, &testKey);
+
 	aid_control = get_aid_aor_control_set(cd_idx);
 	cmd_count = update_bright_packet(cmd_count, &aid_control);
 
@@ -685,6 +703,8 @@ static int make_brightcontrol_set(int bl_level)
 	gamma_control = get_gamma_control_set(cd_level);
 	cmd_count = update_bright_packet(cmd_count, &gamma_control);
 
+	testKey = get_testKey_set(0);
+	cmd_count = update_bright_packet(cmd_count, &testKey);
 	LCD_DEBUG("bright_level: %d, candela_idx: %d( %d cd ), "\
 		"cmd_count(aid,acl,elvss,temperature,gamma)::(%d,%d,%d,%d)%d,id3(0x%x)\n",
 		msd.dstat.bright_level, cd_idx, cd_level,
@@ -1057,9 +1077,6 @@ static int mipi_samsung_disp_send_cmd(
 			break;
 		case PANEL_BRIGHT_CTRL:
 			cmd_desc = brightness_packet;
-#if 1
-			goto err;
-#endif
 #if defined(CONFIG_LCD_FORCE_VIDEO_MODE)
 			flag = 0;
 #else
@@ -1190,12 +1207,14 @@ static void mdss_dsi_panel_read_func(struct mdss_panel_data *pdata)
 	mipi_samsung_manufacture_date_read(pdata);
 
 #if defined(HBM_RE)
-	/* Read mtp (CAh 34th ~ 39th) for HBM */
+	/* Read mtp (CAh 34th ~ 40th) for HBM */
 	mipi_samsung_read_nv_mem(pdata, &nv_mtp_hbm_read_cmds, hbm_buffer);
-	memcpy(&hbm_gamma_cmds_list.cmd_desc[0].payload[1], hbm_buffer, 7);
+	memcpy(&hbm_gamma_cmds_list.cmd_desc[1].payload[1], hbm_buffer, 7);
+	hbm_etc_cmds_list.cmd_desc[3].payload[1] = hbm_gamma_cmds_list.cmd_desc[1].payload[7];
+
 	/* Read mtp (CAh 73th ~ 87th) for HBM */
 	mipi_samsung_read_nv_mem(pdata, &nv_mtp_hbm2_read_cmds, hbm_buffer);
-	memcpy(&hbm_gamma_cmds_list.cmd_desc[0].payload[8], hbm_buffer, 15);
+	memcpy(&hbm_gamma_cmds_list.cmd_desc[1].payload[7], hbm_buffer, 15);
 #endif
 
 #if defined(CONFIG_MDNIE_LITE_TUNING)
@@ -1287,6 +1306,7 @@ static int mdss_dsi_panel_registered(struct mdss_panel_data *pdata)
 
 static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 {
+	static int first_boot = 1;
 	struct mdss_dsi_ctrl_pdata *ctrl = NULL;
 
 	if (pdata == NULL) {
@@ -1320,7 +1340,10 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 	if (!msd.dstat.is_smart_dim_loaded)
 		mdss_dsi_panel_dimming_init(pdata);
 
-	mipi_samsung_disp_send_cmd(PANEL_DISPLAY_ON_SEQ, true);
+	if (first_boot)
+		first_boot = 0; /* klimt panel doens't send sleep out cmd if splash enabled */
+	else
+		mipi_samsung_disp_send_cmd(PANEL_DISPLAY_ON_SEQ, true);
 
 	/* Recovery Mode : Set some default brightness */
 	if (msd.dstat.recovery_boot_mode) {
@@ -1346,6 +1369,10 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 	// to prevent splash during wakeup
 	if (msd.dstat.recent_bright_level) {
 		msd.dstat.bright_level = msd.dstat.recent_bright_level;
+#if defined(CONFIG_MACH_KLIMT_LTE_DCM)
+		if(!msd.mfd->unset_bl_level)
+			msd.mfd->unset_bl_level = msd.dstat.bright_level;
+#endif
 		mipi_samsung_disp_send_cmd(PANEL_BRIGHT_CTRL, true);
 	}
 
@@ -1986,6 +2013,11 @@ static int mdss_panel_parse_dt(struct device_node *np,
 	mdss_samsung_parse_panel_cmd(np, &elvss_cmds_list,
 				"samsung,panel-elvss-cmds-list");
 
+	mdss_samsung_parse_panel_cmd(np, &test_key_enable_cmds,
+				"samsung,panel-test-key-enable-cmds");
+	mdss_samsung_parse_panel_cmd(np, &test_key_disable_cmds,
+				"samsung,panel-test-key-disable-cmds");
+
 	mdss_samsung_parse_panel_cmd(np, &aid_cmds_list,
 				"samsung,panel-aid-cmds-list");
 	mdss_samsung_parse_panel_table(np, &aid_map_table,
@@ -2323,12 +2355,10 @@ static ssize_t mipi_samsung_disp_lcdtype_show(struct device *dev,
 {
 	char temp[100];
 
-	switch (msd.panel) {
-	case PANEL_WQXGA_OCTA_S6E3HA1_CMD:
-	default :
-		snprintf(temp, 20, "SDC_AMS840CS01\n");
-		break;
-	}
+	if(msd.manufacture_id)
+		snprintf(temp, 20, "SDC_%x\n",msd.manufacture_id);
+	else
+		pr_info("no manufacture id\n");
 
 	strlcat(buf, temp, 100);
 
@@ -2505,9 +2535,10 @@ static ssize_t mipi_samsung_aid_log_show(struct device *dev,
 {
 	int rc = 0;
 
-	if (msd.dstat.is_smart_dim_loaded)
-		msd.sdimconf->print_aid_log();
-	else
+	if (msd.dstat.is_smart_dim_loaded) {
+			if(msd.sdimconf->print_aid_log)
+				msd.sdimconf->print_aid_log();
+	} else
 		pr_err("smart dim is not loaded..\n");
 
 	return rc;
@@ -2959,10 +2990,6 @@ static int __init get_lcd_id_cmdline(char *mode)
 		}
 	}
 	lcd_attached = ((lcd_id&0xFFFFFF)!=0x000000);
-
-	/* Temporary */
-	lcd_attached=1;
-	lcd_id = 0x421103;
 
 	pr_info( "%s: LCD_ID = 0x%X, lcd_attached =%d", __func__,lcd_id, lcd_attached);
 

@@ -45,6 +45,7 @@ static char cabc_tune_data1[CABC_TUNE_FIRST_SIZE] = {0,};
 static char cabc_tune_data2[CABC_TUNE_SECOND_SIZE] = {0,};
 static char cabc_tune_data3[CABC_TUNE_THIRD_SIZE] = {0,};
 static char cabc_tune_data4[CABC_TUNE_FOURTH_SIZE] = {0,};
+static char cabc_tune_data5[CABC_TUNE_FIFTH_SIZE] = {0,};
 static char cabc_select_data[CABC_TUNE_SELECT_SIZE] = {0,};
 
 static char tuning_file[128];
@@ -65,10 +66,12 @@ static struct dsi_cmd_desc cabc_tune_cmd[] = {
 		sizeof(cabc_tune_data1)}, cabc_tune_data1},
 	{{DTYPE_GEN_LWRITE, 1, 0, 0, 0,
 		sizeof(cabc_tune_data2)}, cabc_tune_data2},
-	{{DTYPE_GEN_LWRITE, 1, 0, 0, 0,
+	{{DTYPE_DCS_WRITE1, 1, 0, 0, 0,
 		sizeof(cabc_tune_data3)}, cabc_tune_data3},
 	{{DTYPE_GEN_LWRITE, 1, 0, 0, 0,
 		sizeof(cabc_tune_data4)}, cabc_tune_data4},
+	{{DTYPE_GEN_LWRITE, 1, 0, 0, 0,
+		sizeof(cabc_tune_data5)}, cabc_tune_data5},
 	{{DTYPE_DCS_WRITE1, 1, 0, 0, 0,
 		sizeof(cabc_select_data)}, cabc_select_data},
 };
@@ -139,7 +142,11 @@ static void print_tun_data(void)
 	for (i = 0; i < CABC_TUNE_FOURTH_SIZE ; i++)
 		DPRINT("0x%x ", PAYLOAD4.payload[i]);
 	DPRINT("\n");
-	DPRINT("---- size5 : %d", SELECT.dchdr.dlen);
+	DPRINT("---- size5 : %d", PAYLOAD5.dchdr.dlen);
+	for (i = 0; i < CABC_TUNE_FIFTH_SIZE ; i++)
+		DPRINT("0x%x ", PAYLOAD5.payload[i]);
+	DPRINT("\n");
+	DPRINT("---- size6 : %d", SELECT.dchdr.dlen);
 	for (i = 0; i < CABC_TUNE_SELECT_SIZE ; i++)
 		DPRINT("0x%x ", SELECT.payload[i]);
 	DPRINT("\n");
@@ -151,6 +158,7 @@ static void free_tun_cmd(void)
 	memset(cabc_tune_data1, 0, CABC_TUNE_FIRST_SIZE);
 	memset(cabc_tune_data2, 0, CABC_TUNE_SECOND_SIZE);
 	memset(cabc_tune_data3, 0, CABC_TUNE_THIRD_SIZE);
+	memset(cabc_tune_data4, 0, CABC_TUNE_FOURTH_SIZE);
 	memset(cabc_select_data, 0, CABC_TUNE_SELECT_SIZE);
 }
 
@@ -196,6 +204,7 @@ void CABC_Set_Mode(void)
 		INPUT_PAYLOAD1(CABC_NORMAL_1);
 		INPUT_PAYLOAD2(CABC_NORMAL_2);
 		INPUT_PAYLOAD3(CABC_NORMAL_3);
+		INPUT_PAYLOAD4(CABC_NORMAL_4);
 		break;
 
 	case CABC_MODE_VIDEO:
@@ -203,6 +212,7 @@ void CABC_Set_Mode(void)
 		INPUT_PAYLOAD1(CABC_NORMAL_1);
 		INPUT_PAYLOAD2(CABC_NORMAL_2);
 		INPUT_PAYLOAD3(CABC_NORMAL_3);
+		INPUT_PAYLOAD4(CABC_NORMAL_4);
 		break;
 	default:
 		DPRINT("[%s] no option for mode (%d)\n", __func__,
@@ -213,11 +223,11 @@ void CABC_Set_Mode(void)
 	switch (cabc_tun_state.negative) {
 	case CABC_NEGATIVE_OFF:
 		DPRINT(" = Negative Disabled =\n");
-		INPUT_PAYLOAD4(CABC_NORMAL_4);
+		INPUT_PAYLOAD5(CABC_NORMAL_5);
 		break;
 	case CABC_NEGATIVE_ON:
 		DPRINT(" = Negative Enabled =\n");
-		INPUT_PAYLOAD4(CABC_NEGATIVE_4);
+		INPUT_PAYLOAD5(CABC_NEGATIVE_5);
 		break;
 	default:
 		DPRINT("[%s] no option for Negative (%d)\n", __func__,
@@ -674,24 +684,41 @@ static ssize_t cabc_tuning_store(struct device *dev,
 	pr_info("%s:%s\n", __func__, tuning_file);
 	load_tuning_file(tuning_file);
 
-	for (b = 0; b < 3; b++) {
+	//B8h, B9h
+	for (b = 0; b < 2; b++) {
 		for (a = 0; a < 7; a++) {
 			printk(KERN_INFO "0x%x = 0x%x ", cabc_master_dsi_ctrl->cabc_tune_cmds.cmds[b].payload[a],
 					cabc_tuning[a + (b*7)]);
 			cabc_master_dsi_ctrl->cabc_tune_cmds.cmds[b].payload[a] = cabc_tuning[a + (b*7)];
 		}
 	}
-	for (a = 0; a < 22; a++) {
-			printk(KERN_INFO "0x%x = 0x%x ", cabc_master_dsi_ctrl->cabc_tune_cmds.cmds[3].payload[a],
-					cabc_tuning[21 + a]);
-			cabc_master_dsi_ctrl->cabc_tune_cmds.cmds[3].payload[a] = cabc_tuning[21 + a];
+
+	//53h
+	for (a = 0; a < 2; a++) {
+			printk(KERN_INFO "[53h]0x%x = 0x%x ", cabc_master_dsi_ctrl->cabc_tune_cmds.cmds[2].payload[a],
+					cabc_tuning[14 + a]);
+			cabc_master_dsi_ctrl->cabc_tune_cmds.cmds[2].payload[a] = cabc_tuning[14 + a];
 	}
-	for (b = 0; b < 3; b++) {
-		for (a = 0; a < 4; a++) {
-			cabc_master_dsi_ctrl->cabc_tune_cmds.cmds[b+4].payload[a] = cabc_tuning[39 + a + (b*4)];
-			printk(KERN_INFO "0x%x = 0x%x ", cabc_master_dsi_ctrl->cabc_tune_cmds.cmds[b+4].payload[a],
-					cabc_tuning[39 + a + (b*4)]);
-		}
+
+	//5Eh
+	for (a = 0; a < 2; a++) {
+			printk(KERN_INFO "[5Eh]0x%x = 0x%x ", cabc_master_dsi_ctrl->cabc_tune_cmds.cmds[3].payload[a],
+					cabc_tuning[16 + a]);
+			cabc_master_dsi_ctrl->cabc_tune_cmds.cmds[3].payload[a] = cabc_tuning[16 + a];
+	}
+
+	//CEh
+	for (a = 0; a < 24; a++) {
+			printk(KERN_INFO "[CEh]0x%x = 0x%x ", cabc_master_dsi_ctrl->cabc_tune_cmds.cmds[4].payload[a],
+					cabc_tuning[18 + a]);
+			cabc_master_dsi_ctrl->cabc_tune_cmds.cmds[4].payload[a] = cabc_tuning[18 + a];
+	}
+
+	//C1h
+	for (a = 0; a < 36; a++) {
+			printk(KERN_INFO "[C1h]0x%x = 0x%x ", cabc_master_dsi_ctrl->cabc_tune_cmds.cmds[5].payload[a],
+					cabc_tuning[42 + a]);
+			cabc_master_dsi_ctrl->cabc_tune_cmds.cmds[5].payload[a] = cabc_tuning[42 + a];
 	}
 
 	mdss_dsi_panel_cmds_send(cabc_slave_dsi_ctrl, &cabc_slave_dsi_ctrl->cabc_tune_cmds);

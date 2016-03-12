@@ -1,3 +1,4 @@
+mdss-mdp3-objs = mdp3.o mdp3_dma.o mdp3_ctrl.o dsi_status_v2.o
 ifeq ($(TARGET_BUILD_VARIANT),user)
 EXTRA_CFLAGS += -DDLOG_USER_VARIANT
 endif
@@ -6,7 +7,7 @@ mdss-mdp3-objs = mdp3.o mdp3_dma.o mdp3_ctrl.o
 mdss-mdp3-objs += mdp3_ppp.o mdp3_ppp_hwio.o mdp3_ppp_data.o
 obj-$(CONFIG_FB_MSM_MDSS_MDP3) += mdss-mdp3.o
 
-mdss-mdp-objs := mdss_mdp.o mdss_mdp_ctl.o mdss_mdp_pipe.o mdss_mdp_util.o
+mdss-mdp-objs := mdss_mdp.o mdss_mdp_ctl.o mdss_mdp_pipe.o mdss_mdp_util.o dsi_status_6g.o
 mdss-mdp-objs += mdss_mdp_pp.o
 mdss-mdp-objs += mdss_mdp_intf_video.o
 mdss-mdp-objs += mdss_mdp_intf_cmd.o
@@ -52,13 +53,13 @@ mdss-dsi-objs += logo.o mdss_sharp_hd_dsi_panel.o
 else ifeq ($(CONFIG_FB_MSM_MIPI_SAMSUNG_TFT_VIDEO_WQXGA_PT_PANEL),y)
 mdss-dsi-objs +=logo.o  mdss_samsung_tft_video_dual_dsi_panel.o LP8556-backlight.o
 else ifeq ($(CONFIG_FB_MSM_MIPI_MAGNA_OCTA_VIDEO_WXGA_PT_DUAL_PANEL),y)
-mdss-dsi-objs += logo.o mdss_magna_octa_video_wxga_dual_panel.o smart_mtp_ea8061v.o
+mdss-dsi-objs += logo.o mdss_magna_octa_video_wxga_dual_panel.o smart_mtp_patek.o
 else ifeq ($(CONFIG_FB_MSM_MIPI_SAMSUNG_OCTA_CMD_WQXGA_S6TNMR7_PT_PANEL),y)
 mdss-dsi-objs +=mdss_samsung_dual_oled_cmd_wqxga_panel.o smart_mtp_s6tnmr7.o
 else ifeq ($(CONFIG_FB_MSM_MIPI_SAMSUNG_OCTA_CMD_WQXGA_S6E3HA1_PT_PANEL),y)
 mdss-dsi-objs +=mdss_samsung_dual_oled_cmd_wqxga_s6e3ha1_panel.o smart_mtp_s6e3ha1.o
 else ifeq ($(CONFIG_FB_MSM_MDSS_SDC_WXGA_PANEL),y)
-ifeq ($(CONFIG_MACH_DEGASLTE_SPR),y)
+ifeq ($(CONFIG_SEC_DEGAS_PROJECT),y)
 mdss-dsi-objs +=logo.o mdss_sdc_wxga_dsi_panel.o
 else
 mdss-dsi-objs +=logo.o mdss_sdc_wxga_dsi_panel.o  LP8556-backlight.o
@@ -112,6 +113,8 @@ CFLAGS_smart_mtp_s6e3ha1.o += -Wno-unused-variable
 mdss-dsi-objs += msm_mdss_io_8974.o
 ifeq ($(CONFIG_FB_MSM_MDSS_S6E8AA0A_HD_PANEL),y)
 obj-$(CONFIG_MDNIE_LITE_TUNING) += mdss_video_enhance.o
+else ifeq ($(CONFIG_FB_MSM_MIPI_SAMSUNG_OCTA_CMD_WQXGA_S6TNMR7_PT_PANEL),y)
+obj-$(CONFIG_MDNIE_LITE_TUNING) += mdnie_lite_tuning_chagall.o
 else
 obj-$(CONFIG_MDNIE_LITE_TUNING) += mdnie_lite_tuning.o
 endif
@@ -124,6 +127,7 @@ ifeq ($(CONFIG_FB_MSM_EDP_SAMSUNG),y)
 obj-$(CONFIG_FB_MSM_EDP_SAMSUNG) += mdss_edp.o
 obj-$(CONFIG_FB_MSM_EDP_SAMSUNG) += mdss_edp_aux.o
 endif
+obj-$(CONFIG_SEC_MIPI_CLOCK_TUNING) += mipi_tool.o
 
 obj-$(CONFIG_FB_MSM_MDSS) += mdss_io_util.o
 obj-$(CONFIG_FB_MSM_MDSS_HDMI_PANEL) += mdss_hdmi_tx.o

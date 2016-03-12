@@ -41,14 +41,22 @@
 #include "mdss_dsi.h"
 #include "mdss_samsung_dsi_panel_msm8x26.h"
 #include "mdnie_tft_msm8x26.h"
-#if defined(CONFIG_MACH_MS01_EUR_3G) || defined(CONFIG_MACH_MS01_EUR_LTE)
+#if defined(CONFIG_MACH_MS01_EUR_3G) || defined(CONFIG_MACH_MS01_EUR_LTE) || defined(CONFIG_MACH_MS01_KOR_LTE)
 #include "mdnie_lite_tuning_data_ms01.h"
-#elif defined(CONFIG_SEC_MILLET_PROJECT) || defined(CONFIG_SEC_DEGAS_PROJECT)
+#elif defined(CONFIG_FB_MSM_MDSS_SDC_WXGA_PANEL)
+#if defined(CONFIG_SEC_RUBENS_PROJECT)
+#include "mdnie_tft_data_rubens.h"
+#else
 #include "mdnie_tft_data_millet.h"
+#endif
 #elif defined(CONFIG_SEC_T10_PROJECT) || defined(CONFIG_SEC_T8_PROJECT)
 #include "mdnie_tft_data_t10_t8.h"
 #elif defined(CONFIG_MACH_MEGA23GEUR_OPEN)
 #include "mdnie_tft_data_mega23g.h"
+#elif defined(CONFIG_MACH_MEGA2LTE_KTT)
+#include "mdnie_tft_data_mega23g.h"
+#elif defined(CONFIG_MACH_VASTALTE_CHN_CMCC_DUOS)
+#include "mdnie_tft_data_vastacmccduos.h"
 #endif
 
 int get_lcd_attached(void);
@@ -171,27 +179,41 @@ static char tune_data6[MDNIE_TUNE_SIXTH_SIZE] = {0,};
 #endif
 #endif
 static struct dsi_cmd_desc mdni_tune_cmd[] = {
-#if !defined (CONFIG_FB_MSM_MDSS_HX8394C_TFT_VIDEO_720P_PANEL)
-	{{DTYPE_DCS_LWRITE, 1, 0, 0, 1,
+#if defined (CONFIG_FB_MSM_MDSS_SDC_WXGA_PANEL)
+	{{DTYPE_DCS_LWRITE, 1, 0, 0, 0,
 		sizeof(level1_key)}, level1_key},
-	{{DTYPE_DCS_LWRITE, 1, 0, 0, 1,
+	{{DTYPE_DCS_LWRITE, 1, 0, 0, 0,
 		sizeof(level2_key)}, level2_key},
-#endif
-	{{DTYPE_DCS_LWRITE, 1, 0, 0, 2,
+	{{DTYPE_DCS_LWRITE, 1, 0, 0, 0,
 		sizeof(tune_data1)}, tune_data1},
-	{{DTYPE_DCS_LWRITE, 1, 0, 0, 2,
+	{{DTYPE_DCS_LWRITE, 1, 0, 0, 0,
 		sizeof(tune_data2)}, tune_data2},
-#if defined (CONFIG_FB_MSM_MDSS_SDC_WXGA_PANEL) || defined (CONFIG_FB_MSM_MDSS_HX8394C_TFT_VIDEO_720P_PANEL)
-	{{DTYPE_DCS_LWRITE, 1, 0, 0, 2,
+	{{DTYPE_DCS_LWRITE, 1, 0, 0, 0,
 		sizeof(tune_data3)}, tune_data3},
-	{{DTYPE_DCS_LWRITE, 1, 0, 0, 2,
+	{{DTYPE_DCS_LWRITE, 1, 0, 0, 0,
 		sizeof(tune_data4)}, tune_data4},
-#if !defined (CONFIG_FB_MSM_MDSS_HX8394C_TFT_VIDEO_720P_PANEL)
-	{{DTYPE_DCS_LWRITE, 1, 0, 0, 2,
+	{{DTYPE_DCS_LWRITE, 1, 0, 0, 0,
 		sizeof(tune_data5)}, tune_data5},
-	{{DTYPE_DCS_LWRITE, 1, 0, 0, 2,
+	{{DTYPE_DCS_LWRITE, 1, 0, 0, 0,
 		sizeof(tune_data6)}, tune_data6},
-#endif
+#elif defined (CONFIG_FB_MSM_MDSS_HX8394C_TFT_VIDEO_720P_PANEL)
+	{{DTYPE_DCS_LWRITE, 1, 0, 0, 0,
+		sizeof(tune_data1)}, tune_data1},
+	{{DTYPE_DCS_LWRITE, 1, 0, 0, 0,
+		sizeof(tune_data2)}, tune_data2},
+	{{DTYPE_DCS_LWRITE, 1, 0, 0, 0,
+		sizeof(tune_data3)}, tune_data3},
+	{{DTYPE_DCS_LWRITE, 1, 0, 0, 0,
+		sizeof(tune_data4)}, tune_data4},
+#else
+	{{DTYPE_DCS_LWRITE, 1, 0, 0, 0,
+		sizeof(level1_key)}, level1_key},
+	{{DTYPE_DCS_LWRITE, 1, 0, 0, 0,
+		sizeof(level2_key)}, level2_key},
+	{{DTYPE_DCS_LWRITE, 1, 0, 0, 0,
+		sizeof(tune_data1)}, tune_data1},
+	{{DTYPE_DCS_LWRITE, 1, 0, 0, 0,
+		sizeof(tune_data2)}, tune_data2},
 #endif
 };
 
@@ -343,6 +365,19 @@ void mDNIe_Set_Mode(enum Lcd_mDNIe_UI mode)
 	if (mdnie_tun_state.blind == COLOR_BLIND)
 		mode = mDNIE_BLINE_MODE;
 
+#if defined(CONFIG_SEC_RUBENS_PROJECT)
+	if (mdnie_msd->dstat.auto_brightness >= 6) {
+		if ((mdnie_tun_state.scenario == mDNIe_eBOOK_MODE) || (mdnie_tun_state.scenario == mDNIe_BROWSER_MODE))
+			mode = mDNIE_OUTDOOR_MODE_FOR_TEXT;
+		else
+			mode = mDNIE_OUTDOOR_MODE;
+	} else {
+		if (mdnie_tun_state.blind == COLOR_BLIND)
+			mode = mDNIE_BLINE_MODE;
+		else
+			mode = mdnie_tun_state.scenario;
+	}
+#endif
 #if !defined(CONFIG_SEC_MATISSE_PROJECT) && !defined(CONFIG_MDP_NEGATIVE_SUPPORT)
 	switch (mode) {
 #if defined (CONFIG_FB_MSM_MDSS_SDC_WXGA_PANEL)
@@ -467,6 +502,34 @@ void mDNIe_Set_Mode(enum Lcd_mDNIe_UI mode)
 		INPUT_PAYLOAD5(COLOR_BLIND_5);
 		INPUT_PAYLOAD6(COLOR_BLIND_6);
 		break;
+#if defined(CONFIG_SEC_RUBENS_PROJECT)
+		case mDNIE_OUTDOOR_MODE:
+		if (mdnie_msd->dstat.auto_brightness >= 6) {
+		DPRINT(" = OUTDOOR MODE =\n");
+			INPUT_PAYLOAD1(OUTDOOR_1);
+			INPUT_PAYLOAD2(OUTDOOR_2);
+			INPUT_PAYLOAD3(OUTDOOR_3);
+			INPUT_PAYLOAD4(OUTDOOR_4);
+			INPUT_PAYLOAD5(OUTDOOR_5);
+			INPUT_PAYLOAD6(OUTDOOR_6);
+		} else {
+			mDNIe_Set_Mode(mdnie_tun_state.scenario);
+		}
+		break;
+	case mDNIE_OUTDOOR_MODE_FOR_TEXT:
+		if (mdnie_msd->dstat.auto_brightness >= 6) {
+			DPRINT(" = OUTDOOR MODE FOR TEXT = \n");
+			INPUT_PAYLOAD1(OUTDOOR_FOR_TEXT_1);
+			INPUT_PAYLOAD2(OUTDOOR_FOR_TEXT_2);
+			INPUT_PAYLOAD3(OUTDOOR_FOR_TEXT_3);
+			INPUT_PAYLOAD4(OUTDOOR_FOR_TEXT_4);
+			INPUT_PAYLOAD5(OUTDOOR_FOR_TEXT_5);
+			INPUT_PAYLOAD6(OUTDOOR_FOR_TEXT_6);
+		} else {
+			mDNIe_Set_Mode(mdnie_tun_state.scenario);
+		}
+		break;
+#endif
 #elif defined (CONFIG_FB_MSM_MDSS_HX8394C_TFT_VIDEO_720P_PANEL)
 	case mDNIe_UI_MODE:
 		DPRINT(" = UI MODE =\n");
@@ -792,6 +855,7 @@ void mDNIe_Set_Mode(enum Lcd_mDNIe_UI mode)
 		scenario_name[mdnie_tun_state.scenario], mdnie_tun_state.scenario,
 		background_name[mdnie_tun_state.background], mdnie_tun_state.background);
 #else
+		mdnie_msd->scenario = mode;
 		DPRINT("mDNIe_Set_Mode end , mode(%d), background(%d)\n",
 		mode, mdnie_tun_state.background);
 #endif
@@ -810,7 +874,14 @@ void is_negative_on(void)
 		DPRINT("negative off when resume, tuning again!\n");
 		mdss_negative_color(mdnie_tun_state.negative);
 #if !defined(CONFIG_SEC_MATISSE_PROJECT)  && !defined(CONFIG_MDP_NEGATIVE_SUPPORT)
+#if defined(CONFIG_SEC_RUBENS_PROJECT)
+		if (mdnie_msd->dstat.auto_brightness >= 6)
+			mDNIe_Set_Mode(mDNIE_OUTDOOR_MODE);
+		else
+			mDNIe_Set_Mode(mdnie_tun_state.scenario);
+#else
 		mDNIe_Set_Mode(mdnie_tun_state.scenario);
+#endif
 #endif
 	}
 }
@@ -1281,7 +1352,7 @@ static ssize_t accessibility_store(struct device *dev,
 #if defined(CONFIG_FB_MSM_MDSS_HX8394C_TFT_VIDEO_720P_PANEL)
 	   memcpy(&COLOR_BLIND_4[22],buffer, MDNIE_COLOR_BLINDE_CMD);
 #else
-		memcpy(&COLOR_BLIND_2[MDNIE_COLOR_BLINDE_CMD],
+	memcpy(&COLOR_BLIND_2[MDNIE_COLOR_BLINDE_CMD],
 				buffer, MDNIE_COLOR_BLINDE_CMD);
 #endif
 	} else if (cmd_value == ACCESSIBILITY_OFF) {

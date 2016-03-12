@@ -655,13 +655,8 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 	
 	pr_debug("%s: ctrl=%p ndx=%d\n", __func__, ctrl, ctrl->ndx);
 
-	if (ctrl->on_cmds.cmd_cnt){
+	if (ctrl->on_cmds.cmd_cnt)
 		mdss_dsi_panel_cmds_send(ctrl, &ctrl->on_cmds);
-		if(first_boot == 0)
-			mdss_dsi_panel_bklt_dcs(ctrl,0x5f);// setting default brightness of bootloader.
-		else
-			mdss_dsi_panel_bklt_dcs(ctrl,msd.mfd->bl_level_old);
-		}
 
 	msd.mfd->resume_state = MIPI_RESUME_STATE;
 #if defined(CONFIG_LCD_CLASS_DEVICE)

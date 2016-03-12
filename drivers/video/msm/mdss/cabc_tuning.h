@@ -30,15 +30,17 @@
 
 #define CABC_TUNE_FIRST_SIZE 7
 #define CABC_TUNE_SECOND_SIZE 7
-#define CABC_TUNE_THIRD_SIZE 18
-#define CABC_TUNE_FOURTH_SIZE 36
+#define CABC_TUNE_THIRD_SIZE 2
+#define CABC_TUNE_FOURTH_SIZE 24
+#define CABC_TUNE_FIFTH_SIZE 36
 #define CABC_TUNE_SELECT_SIZE 2
 
 #define PAYLOAD1 cabc_tune_cmd[0]
 #define PAYLOAD2 cabc_tune_cmd[1]
 #define PAYLOAD3 cabc_tune_cmd[2]
 #define PAYLOAD4 cabc_tune_cmd[3]
-#define SELECT cabc_tune_cmd[4]
+#define PAYLOAD5 cabc_tune_cmd[4]
+#define SELECT cabc_tune_cmd[5]
 
 #define CABC_OFF 0
 #define CABC_ON 1
@@ -47,6 +49,7 @@
 #define INPUT_PAYLOAD2(x) PAYLOAD2.payload = x
 #define INPUT_PAYLOAD3(x) PAYLOAD3.payload = x
 #define INPUT_PAYLOAD4(x) PAYLOAD4.payload = x
+#define INPUT_PAYLOAD5(x) PAYLOAD5.payload = x
 #define INPUT_SELECT(x) SELECT.payload = x
 
 

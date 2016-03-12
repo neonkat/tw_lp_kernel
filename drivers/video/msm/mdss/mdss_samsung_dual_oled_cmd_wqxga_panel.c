@@ -28,7 +28,7 @@
 #include "mdss_fb.h"
 
 #if defined(CONFIG_MDNIE_LITE_TUNING)
-#include "mdnie_lite_tuning.h"
+#include "mdnie_lite_tuning_chagall.h"
 #endif
 
 //#define DDI_VIDEO_ENHANCE_TUNING
@@ -74,6 +74,7 @@ static struct dsi_cmd aid_cmds_list;
 static struct dsi_cmd nv_mtp_hbm_read_cmds;
 static struct dsi_cmd nv_mtp_hbm2_read_cmds;
 static struct dsi_cmd nv_mtp_hbm3_read_cmds;
+static struct dsi_cmd nv_mtp_hbm4_read_cmds;
 static struct dsi_cmd hbm_gamma_cmds_list;
 static struct dsi_cmd hbm_etc_cmds_list;
 #endif
@@ -325,10 +326,16 @@ void mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 		msleep(50);
 
 	} else {
+#if defined (CONFIG_MACH_CHAGALL_KDI) && defined(CONFIG_FB_MSM_MIPI_SAMSUNG_OCTA_CMD_WQXGA_S6TNMR7_PT_PANEL) 
+		usleep_range(3000, 3000);
+#endif
 		if (gpio_is_valid(ctrl_pdata->disp_en_gpio2)) {
 			pr_info("%s : Set Low TCON Enable GPIO (1.8V) \n", __func__);
 			gpio_set_value((ctrl_pdata->disp_en_gpio2), 0);
 		}
+#if defined (CONFIG_MACH_CHAGALL_KDI) && defined(CONFIG_FB_MSM_MIPI_SAMSUNG_OCTA_CMD_WQXGA_S6TNMR7_PT_PANEL) 
+		usleep_range(13000, 13000);
+#endif
 		if (gpio_is_valid(ctrl_pdata->disp_en_gpio)) {
 			pr_info("%s : Set Low LCD Enable GPIO (3.3V) \n", __func__);
 			gpio_set_value((ctrl_pdata->disp_en_gpio), 0);
@@ -403,29 +410,15 @@ static int get_cmd_idx(int bl_level)
 static struct dsi_cmd get_aid_aor_control_set(int cd_idx)
 {
 	struct dsi_cmd aid_control = {0,};
-	int cmd_idx = 0, payload_size = 0;
-	char *p_payload, *c_payload;
-	int p_idx = msd.dstat.curr_aid_idx;
+	int cmd_idx = 0;
 
 	if (!aid_map_table.size || !(cd_idx < aid_map_table.size))
 		goto end;
 	/* Get index in the aid command list*/
 	cmd_idx = aid_map_table.cmd_idx[cd_idx];
-	c_payload = aid_cmds_list.cmd_desc[cmd_idx].payload;
-
-
-	/* Check if current & previous commands are same */
-	if (p_idx >= 0) {
-		p_payload = aid_cmds_list.cmd_desc[p_idx].payload;
-		payload_size = aid_cmds_list.cmd_desc[p_idx].dchdr.dlen;
-
-		if (!memcmp(p_payload, c_payload, payload_size))
-			goto end;
-	}
 
 	/* Get the command desc */
 	aid_control.cmd_desc = &(aid_cmds_list.cmd_desc[cmd_idx]);
-
 
 	aid_control.num_of_cmds = 1;
 	msd.dstat.curr_aid_idx = cmd_idx;
@@ -443,32 +436,22 @@ end:
 static struct dsi_cmd get_acl_control_on_set(void)
 {
 	struct dsi_cmd aclcont_control = {0,};
-	int acl_cond = msd.dstat.curr_acl_cond;
-
-	if (acl_cond) /* already acl condition setted */
-		goto end;
 
 	/* Get the command desc */
 	aclcont_control.cmd_desc = aclcont_cmds_list.cmd_desc;
 	aclcont_control.num_of_cmds = aclcont_cmds_list.num_of_cmds;
-	msd.dstat.curr_acl_cond = 1;
 
 	pr_info("%s #(%d)\n",__func__, aclcont_cmds_list.num_of_cmds);
 
-end:
+	msd.dstat.curr_acl_cond = 1;
+	msd.dstat.curr_acl_idx = 1;
+
 	return aclcont_control;
 }
 
 static struct dsi_cmd get_acl_control_off_set(void)
 {
 	struct dsi_cmd acl_control = {0,};
-	int p_idx = msd.dstat.curr_acl_idx;
-
-	/* Check if current & previous commands are same */
-	if (p_idx == 0) {
-		/* already acl off */
-		goto end;
-	}
 
 	/* Get the command desc */
 	acl_control.cmd_desc = acl_off_cmd.cmd_desc; /* idx 0 : ACL OFF */
@@ -479,7 +462,6 @@ static struct dsi_cmd get_acl_control_off_set(void)
 	msd.dstat.curr_acl_idx = 0;
 	msd.dstat.curr_acl_cond = 0;
 
-end:
 	return acl_control;
 }
 
@@ -1016,6 +998,11 @@ static void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
 {
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
 
+#if defined(CONFIG_MACH_CHAGALL_KDI)
+	//Update the bl_level in msd.dstat.bright_level even if Panel is not ON
+	msd.dstat.bright_level = bl_level;
+#endif
+
 	/*Dont need to send backlight command if display off*/
 	if (msd.mfd->resume_state != MIPI_RESUME_STATE)
 		return;
@@ -1216,6 +1203,9 @@ static void mdss_dsi_panel_read_func(struct mdss_panel_data *pdata)
 	/* Read mtp (CCh 17th ~ 27th) for HBM */
 	mipi_samsung_read_nv_mem(pdata, &nv_mtp_hbm3_read_cmds, hbm_buffer);
 	memcpy(&hbm_gamma_cmds_list.cmd_desc[0].payload[23], hbm_buffer, 11);
+	/* Read mtp (B3h 150th) for HBM ELVSS */
+	mipi_samsung_read_nv_mem(pdata, &nv_mtp_hbm4_read_cmds, hbm_buffer);
+	memcpy(&hbm_etc_cmds_list.cmd_desc[2].payload[1], hbm_buffer, 1);
 #endif
 
 #if defined(CONFIG_MDNIE_LITE_TUNING)
@@ -1373,12 +1363,20 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 	// to prevent splash during wakeup
 	if (msd.dstat.recent_bright_level) {
 		msd.dstat.bright_level = msd.dstat.recent_bright_level;
+#if defined(CONFIG_MACH_CHAGALL_KDI)
+		if(!msd.mfd->unset_bl_level)
+			msd.mfd->unset_bl_level = msd.dstat.bright_level;
+#endif
 		mipi_samsung_disp_send_cmd(PANEL_BRIGHT_CTRL, true);
 	}
 
 #if defined(CONFIG_MDNIE_LITE_TUNING)
 	is_negative_on();
 #endif
+	gpio_tlmm_config(GPIO_CFG(95, 3, GPIO_CFG_INPUT, GPIO_CFG_PULL_UP,
+					GPIO_CFG_2MA), GPIO_CFG_ENABLE);
+	gpio_tlmm_config(GPIO_CFG(96, 3, GPIO_CFG_INPUT, GPIO_CFG_PULL_UP,
+					GPIO_CFG_2MA), GPIO_CFG_ENABLE);
 
 end:
 	pr_info("%s : ndx=%d --\n", __func__, ctrl->ndx);
@@ -1415,6 +1413,10 @@ static int mdss_dsi_panel_off(struct mdss_panel_data *pdata)
 	pr_info("DISPLAY_OFF\n");
 
 end:
+	gpio_tlmm_config(GPIO_CFG(95, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN,
+					GPIO_CFG_2MA), GPIO_CFG_ENABLE);
+	gpio_tlmm_config(GPIO_CFG(96, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN,
+					GPIO_CFG_2MA), GPIO_CFG_ENABLE);
 	pr_info("%s : --\n",__func__);
 	return 0;
 }
@@ -2025,6 +2027,8 @@ static int mdss_panel_parse_dt(struct device_node *np,
 				"samsung,panel-nv-mtp-read-hbm2-cmds");
 	mdss_samsung_parse_panel_cmd(np, &nv_mtp_hbm3_read_cmds,
 				"samsung,panel-nv-mtp-read-hbm3-cmds");
+	mdss_samsung_parse_panel_cmd(np, &nv_mtp_hbm4_read_cmds,
+				"samsung,panel-nv-mtp-read-hbm4-cmds");
 
 	mdss_samsung_parse_panel_cmd(np, &nv_mtp_elvss_read_cmds,
 				"samsung,panel-nv-mtp-read-elvss-cmds");
@@ -2347,13 +2351,10 @@ static ssize_t mipi_samsung_disp_lcdtype_show(struct device *dev,
 {
 	char temp[100];
 
-	switch (msd.panel) {
-	case PANEL_WQXGA_OCTA_S6TNMR7_VIDEO:
-	case PANEL_WQXGA_OCTA_S6TNMR7_CMD:
-	default :
-		snprintf(temp, 20, "SDC_AMSA05BV01\n");
-		break;
-	}
+	if(msd.manufacture_id)
+		snprintf(temp, 20, "SDC_%x\n",msd.manufacture_id);
+	else
+		pr_info("no manufacture id\n");
 
 	strlcat(buf, temp, 100);
 
@@ -2531,7 +2532,10 @@ static ssize_t mipi_samsung_aid_log_show(struct device *dev,
 	int rc = 0;
 
 	if (msd.dstat.is_smart_dim_loaded)
-		msd.sdimconf->print_aid_log();
+	{
+		if(msd.sdimconf->print_aid_log)
+			msd.sdimconf->print_aid_log();
+	}	
 	else
 		pr_err("smart dim is not loaded..\n");
 
@@ -2586,6 +2590,9 @@ static ssize_t mipi_samsung_auto_brightness_store(struct device *dev,
 
 	if (msd.mfd->resume_state == MIPI_RESUME_STATE) {
 		mipi_samsung_disp_send_cmd(PANEL_BRIGHT_CTRL, true);
+#if defined(CONFIG_MDNIE_LITE_TUNING)
+		mDNIe_Set_Mode(); // LOCAL CE tuning
+#endif
 		pr_info("%s %d %d\n", __func__, msd.dstat.auto_brightness, msd.dstat.bright_level);
 	} else {
 		pr_info("%s : panel is off state!!\n", __func__);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2010-2014, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1095,6 +1095,17 @@ static void hdmi_tx_hpd_int_work(struct work_struct *work)
 	old_jiffies = current_jiffies;
 #endif
 	if (hdmi_ctrl->hpd_state) {
+		/*
+		 * If a down stream device or bridge chip is attached to hdmi
+		 * Tx core output, it is likely that it might be powering the
+		 * hpd module ON/OFF on cable connect/disconnect as it would
+		 * have its own mechanism of detecting cable. Flush power off
+		 * work is needed in case there is any race condidtion between
+		 * power off and on during fast cable plug in/out.
+		 */
+		if (hdmi_ctrl->ds_registered)
+			flush_work(&hdmi_ctrl->power_off_work);
+
 		if (hdmi_tx_enable_power(hdmi_ctrl, HDMI_TX_DDC_PM, true)) {
 			DEV_ERR("%s: Failed to enable ddc power\n", __func__);
 			return;
@@ -1108,8 +1119,18 @@ static void hdmi_tx_hpd_int_work(struct work_struct *work)
 		DEV_INFO("%s: sense cable CONNECTED: state switch to %d\n",
 			__func__, hdmi_ctrl->sdev.state);
 	} else {
+#if defined(CONFIG_SEC_MHL_SUPPORT)
+        hdmi_ctrl->hpd_feature_on = false;
+#endif
 		hdmi_tx_set_audio_switch_node(hdmi_ctrl, 0, false);
 		hdmi_tx_wait_for_audio_engine(hdmi_ctrl);
+
+		if (!hdmi_ctrl->panel_power_on) {
+			if (hdmi_tx_enable_power(hdmi_ctrl, HDMI_TX_DDC_PM,
+				false))
+				DEV_WARN("%s: Failed to disable ddc power\n",
+					__func__);
+		}
 
 		hdmi_tx_send_cable_notification(hdmi_ctrl, 0);
 		DEV_INFO("%s: sense cable DISCONNECTED: state switch to %d\n",
@@ -2311,6 +2332,8 @@ int msm_hdmi_register_mhl(struct platform_device *pdev,
 	ops->set_mhl_max_pclk = hdmi_tx_set_mhl_max_pclk;
 	ops->set_upstream_hpd = hdmi_tx_set_mhl_hpd;
 
+	hdmi_ctrl->ds_registered = true;
+
 	return 0;
 }
 
@@ -2536,7 +2559,11 @@ static void hdmi_tx_power_off_work(struct work_struct *work)
 		DEV_WARN("%s: Failed to disable ddc power\n", __func__);
 
 	if (!hdmi_tx_is_dvi_mode(hdmi_ctrl)){
+#if defined(CONFIG_SII8620_MHL_TX) || defined(CONFIG_VIDEO_MHL_V2)
+		if (hdmi_ctrl->hpd_state)
+			hdmi_tx_set_audio_switch_node(hdmi_ctrl, 0, false);
 		hdmi_tx_wait_for_audio_engine(hdmi_ctrl);
+#endif
 		hdmi_tx_audio_off(hdmi_ctrl);
 	}
 	hdmi_tx_powerdown_phy(hdmi_ctrl);
@@ -2621,7 +2648,7 @@ static int hdmi_tx_power_on(struct mdss_panel_data *panel_data)
 	flush_work_sync(&hdmi_ctrl->power_off_work);
 
 	if (hdmi_ctrl->pdata.primary) {
-		timeout = wait_for_completion_interruptible_timeout(
+		timeout = wait_for_completion_timeout(
 			&hdmi_ctrl->hpd_done, HZ);
 		if (!timeout) {
 			DEV_ERR("%s: cable connection hasn't happened yet\n",
@@ -3127,7 +3154,7 @@ static int hdmi_tx_panel_event_handler(struct mdss_panel_data *panel_data,
 			u32 timeout;
 			hdmi_ctrl->panel_suspend = false;
 
-			timeout = wait_for_completion_interruptible_timeout(
+			timeout = wait_for_completion_timeout(
 				&hdmi_ctrl->hpd_done, HZ/10);
 			if (!timeout & !hdmi_ctrl->hpd_state) {
 				DEV_INFO("%s: cable removed during suspend\n",
@@ -3142,6 +3169,15 @@ static int hdmi_tx_panel_event_handler(struct mdss_panel_data *panel_data,
 		break;
 
 	case MDSS_EVENT_UNBLANK:
+	#if defined (CONFIG_VIDEO_MHL_V2)
+		if (!hdmi_ctrl->hpd_initialized) {
+			rc = hdmi_tx_hpd_on(hdmi_ctrl);
+			if (rc)
+				DEV_ERR("%s: hdmi_tx_hpd_on failed. rc=%d\n",
+						__func__, rc);
+			hdmi_ctrl->hpd_state = true;
+		}
+	#endif
 		rc = hdmi_tx_power_on(panel_data);
 		if (rc)
 			DEV_ERR("%s: hdmi_tx_power_on failed. rc=%d\n",
@@ -3918,6 +3954,7 @@ static int __devexit hdmi_tx_remove(struct platform_device *pdev)
 
 static const struct of_device_id hdmi_tx_dt_match[] = {
 	{.compatible = COMPATIBLE_NAME,},
+	{ /* Sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, hdmi_tx_dt_match);
 
