@@ -16,7 +16,7 @@
 		label = "magna amoled 720p video mode dsi D53D6EA8061V panel";
 		status = "disable";
 		qcom,mdss-dsi-panel-controller = <&mdss_dsi0>;
-		qcom,enable-gpio = <&msmgpio 16 0>;
+		qcom,platform-enable-gpio = <&msmgpio 16 0>;
 		qcom,enable-gpio2 = <&msmgpio 56 0>;
 		qcom,rst-gpio = <&msmgpio 25 0>;
 		qcom,cont-splash-enabled = <1>;
