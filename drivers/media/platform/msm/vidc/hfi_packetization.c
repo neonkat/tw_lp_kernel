@@ -1492,6 +1492,20 @@ int create_pkt_cmd_session_set_property(
 		pkt->size += sizeof(u32) * 2;
 		break;
 	}
+	case HAL_PARAM_VENC_ENABLE_INITIAL_QP:
+	{
+		struct hfi_initial_quantization *hfi;
+		struct hal_initial_quantization *quant = pdata;
+		pkt->rg_property_data[0] =
+			HFI_PROPERTY_PARAM_VENC_INITIAL_QP;
+		hfi = (struct hfi_initial_quantization *) &pkt->rg_property_data[1];
+		hfi->init_qp_enable = quant->initqp_enable;
+		hfi->qp_i = quant->qpi;
+		hfi->qp_p = quant->qpp;
+		hfi->qp_b = quant->qpb;
+		pkt->size += sizeof(u32) + sizeof(struct hfi_initial_quantization);
+		break;
+	}
 	case HAL_PARAM_VPE_COLOR_SPACE_CONVERSION:
 	{
 		struct hfi_vpe_color_space_conversion *hfi = NULL;
@@ -1506,20 +1520,6 @@ int create_pkt_cmd_session_set_property(
 
 		dprintk(VIDC_DBG, "%s HAL_PARAM_VPE_COLOR_SPACE_CONVERSION\n",
 				__func__);
-		break;
-	}
-	case HAL_PARAM_VENC_ENABLE_INITIAL_QP:
-	{
-		struct hfi_initial_quantization *hfi;
-		struct hal_initial_quantization *quant = pdata;
-		pkt->rg_property_data[0] =
-			HFI_PROPERTY_PARAM_VENC_INITIAL_QP;
-		hfi = (struct hfi_initial_quantization *) &pkt->rg_property_data[1];
-		hfi->init_qp_enable = quant->initqp_enable;
-		hfi->qp_i = quant->qpi;
-		hfi->qp_p = quant->qpp;
-		hfi->qp_b = quant->qpb;
-		pkt->size += sizeof(u32) + sizeof(struct hfi_initial_quantization);
 		break;
 	}
 	/* FOLLOWING PROPERTIES ARE NOT IMPLEMENTED IN CORE YET */
