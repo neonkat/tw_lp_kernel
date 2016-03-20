@@ -91,7 +91,7 @@ FUNC_APPEND_DTB()
 		rm $BUILD_KERNEL_OUT_DIR/arch/arm/boot/*.dtb
 	fi
 
-	for DTS_FILE in `ls ${BUILD_KERNEL_DIR}/arch/arm/boot/dts/msm8226/${DTS_NAMES}*.dts`
+	for DTS_FILE in `ls ${BUILD_KERNEL_DIR}/arch/arm/boot/dts/${DTS_NAMES}*.dts`
 	do
 		DTB_FILE=${DTS_FILE%.dts}.dtb
 		DTB_FILE=$BUILD_KERNEL_OUT_DIR/arch/arm/boot/${DTB_FILE##*/}
