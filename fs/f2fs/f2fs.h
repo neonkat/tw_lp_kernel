@@ -1431,8 +1431,6 @@ void destroy_segment_manager_caches(void);
 struct page *grab_meta_page(struct f2fs_sb_info *, pgoff_t);
 struct page *get_meta_page(struct f2fs_sb_info *, pgoff_t);
 struct page *get_meta_page_ra(struct f2fs_sb_info *, pgoff_t);
-
-bool is_valid_blkaddr(struct f2fs_sb_info *, block_t, int);
 int ra_meta_pages(struct f2fs_sb_info *, block_t, int, int);
 long sync_meta_pages(struct f2fs_sb_info *, enum page_type, long);
 void add_dirty_inode(struct f2fs_sb_info *, nid_t, int type);
