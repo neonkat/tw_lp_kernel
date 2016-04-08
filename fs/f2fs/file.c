@@ -735,6 +735,7 @@ static int punch_hole(struct inode *inode, loff_t offset, loff_t len)
 	return ret;
 }
 
+
 static int f2fs_do_collapse(struct inode *inode, pgoff_t start, pgoff_t end)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
@@ -1024,6 +1025,7 @@ noalloc:
 	return ret;
 }
 
+
 #define FALLOC_FL_COLLAPSE_RANGE	0X08
 #define FALLOC_FL_ZERO_RANGE		0X10
 
@@ -1035,6 +1037,9 @@ static long f2fs_fallocate(struct file *file, int mode,
 
 	if (mode & ~(FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE |
 			FALLOC_FL_COLLAPSE_RANGE | FALLOC_FL_ZERO_RANGE))
+
+	if (mode & ~(FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE))
+
 		return -EOPNOTSUPP;
 
 	mutex_lock(&inode->i_mutex);
@@ -1044,13 +1049,17 @@ static long f2fs_fallocate(struct file *file, int mode,
 			goto out;
 
 		ret = punch_hole(inode, offset, len);
+
 	} else if (mode & FALLOC_FL_COLLAPSE_RANGE) {
 		ret = f2fs_collapse_range(inode, offset, len);
 	} else if (mode & FALLOC_FL_ZERO_RANGE) {
 		ret = f2fs_zero_range(inode, offset, len, mode);
 	} else {
 		ret = expand_inode_data(inode, offset, len, mode);
+
 	}
+	else
+		ret = expand_inode_data(inode, offset, len, mode);
 
 	if (!ret) {
 		inode->i_mtime = inode->i_ctime = CURRENT_TIME;
