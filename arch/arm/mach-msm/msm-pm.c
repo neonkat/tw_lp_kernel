@@ -841,8 +841,6 @@ int msm_cpu_pm_enter_sleep(enum msm_pm_sleep_mode mode, bool from_idle)
 int msm_pm_wait_cpu_shutdown(unsigned int cpu)
 {
 
-	int timeout = 50;
-
 	int timeout = 0;
 
 
