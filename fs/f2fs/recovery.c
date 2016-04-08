@@ -541,7 +541,7 @@ out:
 		mutex_unlock(&sbi->cp_mutex);
 	} else if (need_writecp) {
 		struct cp_control cpc = {
-			.reason = CP_RECOVERY,
+			.reason = CP_SYNC,
 		};
 		mutex_unlock(&sbi->cp_mutex);
 		write_checkpoint(sbi, &cpc);

@@ -101,7 +101,6 @@ enum {
 enum {
 	CP_UMOUNT,
 	CP_SYNC,
-	CP_RECOVERY,
 	CP_DISCARD,
 };
 
