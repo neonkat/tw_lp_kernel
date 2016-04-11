@@ -143,162 +143,6 @@ static DEFINE_MUTEX(scan_mutex);
 #define CMA_PAGE_RATIO		70
 #endif
 
-int can_use_cma_pages(gfp_t gfp_mask)
-{
-	int can_use = 0;
-	int mtype = allocflags_to_migratetype(gfp_mask);
-	int i = 0;
-	int *mtype_fallbacks = get_migratetype_fallbacks(mtype);
-
-	if (is_migrate_cma(mtype)) {
-		can_use = 1;
-	} else {
-		for (i = 0;; i++) {
-			int fallbacktype = mtype_fallbacks[i];
-
-			if (is_migrate_cma(fallbacktype)) {
-				can_use = 1;
-				break;
-			}
-
-			if (fallbacktype == MIGRATE_RESERVE)
-				break;
-		}
-	}
-	return can_use;
-}
-
-struct zone_avail {
-	unsigned long free;
-	unsigned long file;
-};
-
-
-void tune_lmk_zone_param(struct zonelist *zonelist, int classzone_idx,
-					int *other_free, int *other_file,
-					int use_cma_pages,
-				struct zone_avail zall[][MAX_NR_ZONES])
-{
-	struct zone *zone;
-	struct zoneref *zoneref;
-	int zone_idx;
-
-	for_each_zone_zonelist(zone, zoneref, zonelist, MAX_NR_ZONES) {
-		struct zone_avail *za;
-		int node_idx = zone_to_nid(zone);
-
-		zone_idx = zonelist_zone_idx(zoneref);
-		za = &zall[node_idx][zone_idx];
-		za->free = zone_page_state(zone, NR_FREE_PAGES);
-		za->file = zone_page_state(zone, NR_FILE_PAGES)
-					- zone_page_state(zone, NR_SHMEM);
-		if (zone_idx == ZONE_MOVABLE) {
-			if (!use_cma_pages) {
-				unsigned long free_cma = zone_page_state(zone,
-						NR_FREE_CMA_PAGES);
-				za->free -= free_cma;
-				*other_free -= free_cma;
-			}
-			continue;
-		}
-
-		if (zone_idx > classzone_idx) {
-			if (other_free != NULL)
-				*other_free -= za->free;
-			if (other_file != NULL)
-				*other_file -= za->file;
-			za->free = za->file = 0;
-		} else if (zone_idx < classzone_idx) {
-			if (zone_watermark_ok(zone, 0, 0, classzone_idx, 0)) {
-				unsigned long lowmem_reserve =
-					  zone->lowmem_reserve[classzone_idx];
-				if (!use_cma_pages) {
-					unsigned long free_cma =
-						zone_page_state(zone,
-							NR_FREE_CMA_PAGES);
-					unsigned long delta =
-						min(lowmem_reserve + free_cma,
-							za->free);
-					*other_free -= delta;
-					za->free -= delta;
-				} else {
-					*other_free -= lowmem_reserve;
-					za->free -= lowmem_reserve;
-				}
-			} else {
-				*other_free -= za->free;
-				za->free = 0;
-			}
-		}
-	}
-}
-
-void tune_lmk_param(int *other_free, int *other_file, struct shrink_control *sc,
-				struct zone_avail zall[][MAX_NR_ZONES])
-{
-	gfp_t gfp_mask;
-	struct zone *preferred_zone;
-	struct zonelist *zonelist;
-	enum zone_type high_zoneidx, classzone_idx;
-	unsigned long balance_gap;
-	int use_cma_pages;
-	struct zone_avail *za;
-
-	gfp_mask = sc->gfp_mask;
-	zonelist = node_zonelist(0, gfp_mask);
-	high_zoneidx = gfp_zone(gfp_mask);
-	first_zones_zonelist(zonelist, high_zoneidx, NULL, &preferred_zone);
-	classzone_idx = zone_idx(preferred_zone);
-	use_cma_pages = can_use_cma_pages(gfp_mask);
-	za = &zall[zone_to_nid(preferred_zone)][classzone_idx];
-
-	balance_gap = min(low_wmark_pages(preferred_zone),
-			  (preferred_zone->present_pages +
-			   KSWAPD_ZONE_BALANCE_GAP_RATIO-1) /
-			   KSWAPD_ZONE_BALANCE_GAP_RATIO);
-
-	if (likely(current_is_kswapd() && zone_watermark_ok(preferred_zone, 0,
-			  high_wmark_pages(preferred_zone) + SWAP_CLUSTER_MAX +
-			  balance_gap, 0, 0))) {
-		if (lmk_fast_run)
-			tune_lmk_zone_param(zonelist, classzone_idx, other_free,
-				       other_file, use_cma_pages, zall);
-		else
-			tune_lmk_zone_param(zonelist, classzone_idx, other_free,
-				       NULL, use_cma_pages, zall);
-
-		if (zone_watermark_ok(preferred_zone, 0, 0, _ZONE, 0)) {
-			unsigned long lowmem_reserve =
-				preferred_zone->lowmem_reserve[_ZONE];
-			if (!use_cma_pages) {
-				unsigned long free_cma = zone_page_state(
-					preferred_zone, NR_FREE_CMA_PAGES);
-				unsigned long delta = min(lowmem_reserve +
-					free_cma, za->free);
-				*other_free -= delta;
-				za->free -= delta;
-			} else {
-				*other_free -= lowmem_reserve;
-				za->free -= lowmem_reserve;
-			}
-		} else {
-			*other_free -= za->free;
-			za->free = 0;
-		}
-
-		lowmem_print(4, "lowmem_shrink of kswapd tunning for highmem "
-			     "ofree %d, %d\n", *other_free, *other_file);
-	} else {
-		tune_lmk_zone_param(zonelist, classzone_idx, other_free,
-			       other_file, use_cma_pages, zall);
-
-		if (!use_cma_pages) {
-			unsigned long free_cma = zone_page_state(preferred_zone,
-						NR_FREE_CMA_PAGES);
-			*other_free -= free_cma;
-			za->free -= free_cma;
-		}
-
 #if defined(CONFIG_ZSWAP)
 extern atomic_t zswap_pool_pages;
 extern atomic_t zswap_stored_pages;
@@ -330,8 +174,6 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 	bool is_active_high;
 	bool flag = 0;
 #endif
-
-	struct zone_avail zall[MAX_NUMNODES][MAX_NR_ZONES];
 
 	if (nr_to_scan > 0) {
 		if (mutex_lock_interruptible(&scan_mutex) < 0)
@@ -367,9 +209,6 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 		other_file -= global_page_state(NR_SHMEM) + total_swapcache_pages;
 	else
 		other_file = 0;
-
-	memset(zall, 0, sizeof(zall));
-	tune_lmk_param(&other_free, &other_file, sc, zall);
 
 	if (lowmem_adj_size < array_size)
 		array_size = lowmem_adj_size;
@@ -459,7 +298,6 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 			     p->pid, p->comm, oom_score_adj, tasksize);
 	}
 	if (selected) {
-
 #if defined(CONFIG_CMA_PAGE_COUNTING)
 		lowmem_print(1, "send sigkill to %d (%s), adj %d, size %d, "
 			"ofree %d, ofile %d(%c), is_kswapd %d - "
@@ -480,13 +318,6 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 				!!current_is_kswapd(),
 				nr_cma_free, sc->priority);
 #endif
-
-		int i, j;
-		char zinfo[ZINFO_LENGTH];
-		char *p = zinfo;
-		lowmem_print(1, "send sigkill to %d (%s), adj %d, size %d\n",
-			     selected->pid, selected->comm,
-			     selected_oom_score_adj, selected_tasksize);
 		lowmem_deathpending_timeout = jiffies + HZ;
 
 		/* Due to MotoCare parser can't handle unfixed column,
@@ -506,6 +337,9 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 				selected_oom_score_adj, selected_tasksize,
 				min_score_adj, sc->gfp_mask, zinfo);
 
+		trace_lmk_kill(selected->pid, selected->comm,
+				selected_oom_score_adj, selected_tasksize,
+				min_score_adj);
 		send_sig(SIGKILL, selected, 0);
 		set_tsk_thread_flag(selected, TIF_MEMDIE);
 		rem -= selected_tasksize;
