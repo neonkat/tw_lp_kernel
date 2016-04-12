@@ -42,7 +42,7 @@
 #define MAX_SAMPLING_DOWN_FACTOR			(100000)
 #define DEF_INPUT_BOOST					(787200)/* Yank555.lu : new */
 #define DEF_IO_IS_BUSY					(1)	/* Yank555.lu : new */
-#define DEF_OPTIMAL_FREQUENCY				(998400)/* Yank555.lu : new */
+#define DEF_OPTIMAL_FREQUENCY				(1094400)/* Yank555.lu : new */
 #define DEF_SYNC_FREQUENCY				(787200)/* Yank555.lu : new */
 #define MICRO_FREQUENCY_DOWN_DIFFERENTIAL		(3)
 #define MICRO_FREQUENCY_DOWN_DIFFERENTIAL_MULTI_CORE	(3)	/* Yank555.lu : new */
@@ -55,7 +55,7 @@
 #define STEP_UP
 #ifdef STEP_UP
 #define DEF_FREQ_STEP					(25)
-#define DEF_STEP_UP_EARLY_HISPEED			(600000)  /* Yank555.lu : was 1190400 */
+#define DEF_STEP_UP_EARLY_HISPEED			(998400)  /* Yank555.lu : was 1190400 */
 #define DEF_STEP_UP_INTERIM_HISPEED			(1190400) /* Yank555.lu : was 1728000 */
 #define DEF_SAMPLING_EARLY_HISPEED_FACTOR		(2)
 #define DEF_SAMPLING_INTERIM_HISPEED_FACTOR		(3)
