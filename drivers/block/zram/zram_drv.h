@@ -19,7 +19,6 @@
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
 
-#include "../zsmalloc/zsmalloc.h"
 #include <linux/zsmalloc.h>
 
 #include "zcomp.h"
