@@ -134,6 +134,21 @@ config CPU_FREQ_DEFAULT_GOV_INTERACTIVE
 	  loading your cpufreq low-level hardware driver, using the
 	  'interactive' governor for latency-sensitive workloads.
 
+config CPU_FREQ_DEFAULT_GOV_YANKACTIVE
+	bool "yankactive"
+	select CPU_FREQ_GOV_YANKACTIVE
+	help
+	  Use the CPUFreq governor 'yankactive' as default. This allows
+	  you to get a full dynamic cpu frequency capable system by simply
+	  loading your cpufreq low-level hardware driver, using the
+	  'yankactive' governor for latency-sensitive workloads.
+
+config CPU_FREQ_DEFAULT_GOV_SMARTMAX
+    bool "smartmax"
+    select CPU_FREQ_GOV_SMARTMAX
+    help
+      Use the CPUFreq governor 'smartmax' as default.
+
 config CPU_FREQ_DEFAULT_GOV_ZZMOOVE
 	bool "zzmoove"
 	select CPU_FREQ_GOV_ZZMOOVE
@@ -210,6 +225,9 @@ config CPU_FREQ_GOV_SMARTMAX
            depends on CPU_FREQ
            help
              smartmax' - a "smart" optimized governor!
+          depends on CPU_FREQ
+         help
+            smartmax' - a "smart" optimized governor!
 
 config CPU_FREQ_GOV_ONDEMAND
 	tristate "'ondemand' cpufreq policy governor"
