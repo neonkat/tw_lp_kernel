@@ -58,8 +58,9 @@
 #define DEFAULT_SUSPEND_IDEAL_FREQ GOV_IDLE_FREQ
 static unsigned int suspend_ideal_freq;
 
-#define DEFAULT_AWAKE_IDEAL_FREQ GOV_IDLE_FREQ
+#define DEFAULT_AWAKE_IDEAL_FREQ GOV_IDLE_FREQ 600000
 static unsigned int awake_ideal_freq;
+
 
 /*
  * Freqeuncy delta when ramping up above the ideal freqeuncy.
@@ -104,7 +105,7 @@ static unsigned int up_rate;
 static unsigned int down_rate;
 
 /* in nsecs */
-#define DEFAULT_SAMPLING_RATE 40000
+#define DEFAULT_SAMPLING_RATE 50000
 static unsigned int sampling_rate;
 
 /* in nsecs */
@@ -123,14 +124,14 @@ static bool ramp_up_during_boost = true;
  * external boost interface - boost if duration is written
  * to sysfs for boost_duration
  */
-static unsigned int boost_freq = 787200;
+static unsigned int boost_freq = 109440;
 static bool boost = true;
 
 /* in nsecs */
 static unsigned int boost_duration = 0;
 
 /* Consider IO as busy */
-#define DEFAULT_IO_IS_BUSY 1
+#define DEFAULT_IO_IS_BUSY 0
 static unsigned int io_is_busy;
 
 #define DEFAULT_IGNORE_NICE 1
@@ -1236,7 +1237,7 @@ static int __init cpufreq_smartmax_init(void) {
 	up_rate = DEFAULT_UP_RATE;
 	down_rate = DEFAULT_DOWN_RATE;
 	suspend_ideal_freq = DEFAULT_SUSPEND_IDEAL_FREQ;
-	awake_ideal_freq = DEFAULT_AWAKE_IDEAL_FREQ;
+	awake_ideal_freq = 600000;
 	ideal_freq = awake_ideal_freq;
 	ramp_up_step = DEFAULT_RAMP_UP_STEP;
 	ramp_down_step = DEFAULT_RAMP_DOWN_STEP;

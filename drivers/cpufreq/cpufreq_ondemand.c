@@ -50,6 +50,8 @@
 #define DEF_STEP_UP_EARLY_HISPEED			(787200)
 #define DEF_STEP_UP_INTERIM_HISPEED			(998400)
 #define DEF_SAMPLING_EARLY_HISPEED_FACTOR		(1)
+#define OPTIMAL_FREQ                                    (1094400)
+#define SYNC_FREQ                                       (787200)
 #define DEF_SAMPLING_INTERIM_HISPEED_FACTOR		(1)
 #endif
 
