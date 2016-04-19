@@ -148,6 +148,7 @@ CONFIG_PERF_USE_VMALLOC=y
 
 #HOTPLUGS
 CONFIG_MSM_HOTPLUG=y
+CONFIG_INTELLI_PLUG=y
 
 #
 # Kernel Performance Events And Counters
@@ -4275,6 +4276,11 @@ CONFIG_POWERSUSPEND=y
 
 #adreno idler
 CONFIG_ADRENO_IDLER=y
+CONFIG_SIMPLE_GPU_ALGORITHM=y
+
+#######
+CONFIG_HPH_HIGH_PERF=y
+
 
 #
 # Library routines
