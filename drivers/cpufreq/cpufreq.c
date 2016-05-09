@@ -1808,16 +1808,16 @@ EXPORT_SYMBOL(cpufreq_get_policy);
  * data   : current policy.
  * policy : policy to be set.
  */
-#define FIXED_MIN_FREQ	300000
+#define FIXED_MIN_FREQ	192000
 static int __cpufreq_set_policy(struct cpufreq_policy *data,
 				struct cpufreq_policy *policy)
 {
 	int ret = 0;
-/* TEMP : do not set high min_freq in governor */
+/* TEMP : do not set high min_freq in governor 
 #if defined(CONFIG_USE_FIX_MIN_FREQ)
 	policy->min = FIXED_MIN_FREQ;
 	pr_debug("%s: fix min freq %d\n", __func__, policy->min);
-#endif
+#endif */
 
 	pr_debug("setting new policy for CPU %u: %u - %u kHz\n", policy->cpu,
 		policy->min, policy->max);
