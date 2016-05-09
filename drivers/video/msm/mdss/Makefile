@@ -1,5 +1,6 @@
 ifeq ($(TARGET_BUILD_VARIANT),user)
 EXTRA_CFLAGS += -DDLOG_USER_VARIANT
+EXTRA_CFLAGS += -Wno-array-bounds
 endif
 obj-$(CONFIG_SAMSUNG_DEBUG_DISPLAY) += dlog.o
 mdss-mdp3-objs = mdp3.o mdp3_dma.o mdp3_ctrl.o

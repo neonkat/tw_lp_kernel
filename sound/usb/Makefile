@@ -15,6 +15,7 @@ snd-usb-audio-objs := 	card.o \
 			stream.o
 
 snd-usbmidi-lib-objs := midi.o
+EXTRA_CFLAGS += -Wno-discarded-array-qualifiers
 
 # Toplevel Module Dependency
 obj-$(CONFIG_SND_USB_AUDIO) += snd-usb-audio.o snd-usbmidi-lib.o

@@ -1,4 +1,5 @@
 snd-soc-88pm860x-objs := 88pm860x-codec.o
+EXTRA_CFLAGS += -Wno-discarded-array-qualifiers
 snd-soc-ac97-objs := ac97.o
 snd-soc-ad1836-objs := ad1836.o
 snd-soc-ad193x-objs := ad193x.o
