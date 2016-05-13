@@ -3610,6 +3610,9 @@ CONFIG_ZCACHE=y
 # CONFIG_BCM_WIMAX is not set
 # CONFIG_FT1000 is not set
 
+###
+CONFIG_CPU_UNDERCLOCK=y
+
 #
 # Speakup console speech
 #

@@ -3441,6 +3441,12 @@ config MSM_DALRPC
 	help
 	  Supports RPC calls to DAL devices on remote processor cores.
 
+config CPU_UNDERCLOCK
+	bool "enable CPU underclocking of Cortex A7"
+	default n
+	help
+	  Enable CPU underclocking to 192Mhz
+
 config MSM_DALRPC_TEST
 	tristate "DAL RPC test module"
 	depends on (MSM_DALRPC && DEBUG_FS)
@@ -3460,7 +3466,7 @@ config MSM_CPU_FREQ_SET_MIN_MAX
 config MSM_CPU_FREQ_MAX
 	int "Max CPU Frequency"
 	depends on MSM_CPU_FREQ_SET_MIN_MAX
-	default 159600
+	default 168900
 
 config MSM_CPU_FREQ_MIN
 	int "Min CPU Frequency"
