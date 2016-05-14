@@ -81,6 +81,10 @@ GRTAGS
 GSYMS
 GTAGS
 
+#dtb tools
+arch/arm/boot/dt.img
+scripts/dtbToolCM
+
 *.orig
 *~
 \#*#
