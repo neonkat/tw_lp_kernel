@@ -245,8 +245,8 @@ CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
 
 HOSTCC       = gcc
 HOSTCXX      = g++
-HOSTCFLAGS   = -Wall -Wmissing-prototypes -Wstrict-prototypes -O2 -fomit-frame-pointer
-HOSTCXXFLAGS = -O2
+HOSTCFLAGS   = -Wall -Wmissing-prototypes -Wstrict-prototypes -O3 -fomit-frame-pointer -fno-tree-vectorize -pipe
+HOSTCXXFLAGS = -O3 -fno-tree-vectorize -pipe
 
 # Decide whether to build built-in, modular, or both.
 # Normally, just do built-in.
@@ -350,12 +350,18 @@ ifeq ($(CONFIG_CRYPTO_FIPS),)
  export READELF
 endif
 
+OPTIMIZFLAGS	= -mvectorize-with-neon-quad \
+		  -fgcse-las -fgcse-sm -fipa-pta -fivopts -fomit-frame-pointer \
+		  -frename-registers -fsection-anchors -ftracer \
+		  -ftree-loop-im -ftree-loop-ivcanon -funsafe-loop-optimizations \
+		  -funswitch-loops -fweb -pipe
+
 CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__ \
 		  -Wbitwise -Wno-return-void $(CF)
-CFLAGS_MODULE   =
-AFLAGS_MODULE   =
+CFLAGS_MODULE   = -mfpu=neon-vfpv4 -DMODULE $(OPTIMIZFLAGS)
+AFLAGS_MODULE   = -DMODULE $(OPTIMIZFLAGS)
 LDFLAGS_MODULE  =
-CFLAGS_KERNEL	=
+CFLAGS_KERNEL	= -mfpu=neon-vfpv4 $(OPTIMIZFLAGS)
 AFLAGS_KERNEL	=
 CFLAGS_GCOV	= -fprofile-arcs -ftest-coverage
 
@@ -566,7 +572,7 @@ all: vmlinux
 ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
 KBUILD_CFLAGS	+= -Os $(call cc-disable-warning,maybe-uninitialized,)
 else
-KBUILD_CFLAGS	+= -O2
+KBUILD_CFLAGS	+= -O3 -pipe -fmodulo-sched -fmodulo-sched-allow-regmoves -fno-tree-vectorize -fno-inline-functions
 endif
 
 include $(srctree)/arch/$(SRCARCH)/Makefile
