@@ -84,6 +84,7 @@ GTAGS
 #dtb tools
 arch/arm/boot/dt.img
 scripts/dtbToolCM
+scripts/dtbTool
 
 *.orig
 *~
