@@ -1391,9 +1391,6 @@ shrink_inactive_list(unsigned long nr_to_scan, struct mem_cgroup_zone *mz,
 	if (nr_taken == 0)
 		return 0;
 
-	nr_reclaimed = shrink_page_list(&page_list, zone, sc,
-						&nr_dirty, &nr_writeback);
-
 	spin_lock_irq(&zone->lru_lock);
 
 	reclaim_stat->recent_scanned[file] += nr_taken;
